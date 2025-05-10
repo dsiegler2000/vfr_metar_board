@@ -8,7 +8,9 @@ app.config["TEMPLATES_AUTO_RELOAD"] = True
 
 @app.route('/')
 def root():
-    return aviation_weather.fetch_latest_metar("KSFO")
+    # return aviation_weather.fetch_latest_metar("KSFO")
+    x = airports.get_airport_info("o69", check_cache=False)
+    return str(x)
 
 # @app.route("/")
 # def index():

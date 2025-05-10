@@ -33,5 +33,4 @@ def fetch_latest_metar(icao_id, madis=False):
     metar_text = aviationweather_api_request(AVIATIONWEATHER_METAR_API_URL, 
                                              ids=icao_id)
     metar = MetarParser().parse(metar_text)
-    print(metar_text)
     return metar.message

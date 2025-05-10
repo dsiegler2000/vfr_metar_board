@@ -7,4 +7,5 @@ export FLASK_ENV=development
 flask --app app.py --debug run
 
 dsiegler@192.168.0.233
+pip freeze > requirements.txt 
 ```
