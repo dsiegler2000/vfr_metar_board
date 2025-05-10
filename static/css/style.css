@@ -1,6 +1,12 @@
-h1 {
-    border: 2px #eee solid;
-    color: brown;
-    text-align: center;
-    padding: 10px;
+/* Bootstrap overrides */
+#wrapper {
+    max-height: 800px;
+    max-width: 1200px;
+    background-color: whitesmoke;
+}
+
+body {
+    background-color: darkblue;
+    max-height: 800px;
+    max-width: 1200px; 
 }
