@@ -1,5 +1,10 @@
 {
     "azos_airport_info_fp": "data/airport_info/azos",
     "airportdb_airport_info_fp": "data/airport_info/airport_db",
-    "airportdb_token_fp": "data/keys/airportdb_token.txt"
+    "airportdb_token_fp": "data/keys/airportdb_token.txt",
+
+    "create_on_init_fps": [
+        "azos_airport_info_fp",
+        "airportdb_airport_info_fp"
+    ]
 }

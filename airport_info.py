@@ -115,8 +115,6 @@ def fetch_airportdb_airport_info(icao_code, check_cache=True):
         if resp.status_code == 404:
             return None
         airport_info = resp.json()
-        if not os.path.exists(json_dir):
-            os.makedirs(json_dir)
         with open(json_fp, "w") as f:
             json.dump(airport_info, f)
     with open(json_fp) as f:

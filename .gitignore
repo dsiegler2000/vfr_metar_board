@@ -2,4 +2,4 @@ env/
 .DS_Store
 data/airport_info/airport_db/
 data/airport_info/azos/
-data/airport_info/keys/
+data/keys/
