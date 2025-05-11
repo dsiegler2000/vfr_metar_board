@@ -8,6 +8,15 @@
         "airportdb_airport_info_fp"
     ],
 
-    "button_gpio_pin": 17,
-    "led_gpio_pin": 18
+    "gpio": {
+        "button_pin": 17,
+        "led_pin": 18
+    },
+
+    "rendering": {
+        "metar": {
+            "size": [360, 360],
+            "rw_size": [40, 320]
+        }
+    }
 }

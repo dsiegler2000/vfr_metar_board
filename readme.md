@@ -13,3 +13,5 @@ sudo apt-get install python-dev
 sudo apt install python-dev-is-python3
 sudo apt install python3-gpiozero
 ```
+
+Note: can get magnetic declination from https://aviationweather.gov/api/data/airport
