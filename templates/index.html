@@ -1,5 +1,29 @@
 {% extends 'base.html' %}
 
+{% block title %} VFR {% endblock %}
 {% block content %}
-    <h1>{% block title %} Welcome to FlaskBlog {% endblock %}</h1>
+    <p id="time">Hi</p>
+    <button id="button">Press me!</button>
+
+<script>
+    // Make this script constantly poll for inputs
+    const socket = new WebSocket("ws://" + location.host + "/echo");
+    var btn = document.getElementById("button");
+
+    var led = false;
+
+    btn.addEventListener("click", function(event) {
+        console.log("Client button clicked");
+        led = !led
+    });
+
+    // Receive current GPIO state
+    socket.addEventListener("message", ev => {
+        console.log(ev.data);
+        socket.send(JSON.stringify({
+            "led": led
+        }));
+    });
+</script>
+
 {% endblock %}

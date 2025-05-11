@@ -6,5 +6,8 @@
     "create_on_init_fps": [
         "azos_airport_info_fp",
         "airportdb_airport_info_fp"
-    ]
+    ],
+
+    "button_gpio_pin": 17,
+    "led_gpio_pin": 18
 }
