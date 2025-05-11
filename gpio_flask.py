@@ -3,6 +3,7 @@
 from gpiozero import LED, Button
 from config import config
 import json
+import time
 
 class FlaskGPIOManager:
     # TODO implement fully no code configurable manager
@@ -13,23 +14,29 @@ class FlaskGPIOManager:
         # Configure button callback
         self.button.when_pressed = self.on_button_pressed
 
-        self._gpio_state = state = {
+        self.debug = False
+
+        self._gpio_state = {
             "button": False,
-            "led": True
+            "led": True,
+            "debug": self.debug
         }
 
     def on_button_pressed(self):
         self._gpio_state["button"] = True
 
     def send_gpio_state(self, ws):
+        self._gpio_state["time"] = time.time()
         ws.send(self._gpio_state)
         self._gpio_state["button"] = False
 
     def read_client_commands(self, client_commands):
         c = json.loads(client_commands)
+        print(f"received {c}")
         if c["led"]:
             self.led.on()
         else:
             self.led.off()
+        self._gpio_state["led"] = c["led"]
 
 flask_gpio_manager = FlaskGPIOManager()

@@ -22,6 +22,7 @@ else:
     print(f"FLASK PROD MODE ENABLED - GPIO SET TO HARDWARE")
 
 from gpio_flask import flask_gpio_manager
+flask_gpio_manager.debug = app.debug
 
 @app.route("/")
 def root():
@@ -35,4 +36,3 @@ def echo(ws):
         data = ws.receive()
         fgm.read_client_commands(data)
         fgm.send_gpio_state(ws)
-        # time.sleep(0.1)

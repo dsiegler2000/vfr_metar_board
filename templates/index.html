@@ -2,16 +2,22 @@
 
 {% block title %} VFR {% endblock %}
 {% block content %}
-    <p id="time">Hi</p>
+    <p id="time">Client time</p>
+    <p>Server time</p>
     <button id="button">Press me!</button>
 
 <script>
-    // Make this script constantly poll for inputs
     const socket = new WebSocket("ws://" + location.host + "/echo");
     var btn = document.getElementById("button");
 
+    // TODO better manage client side requested GPIO state
     var led = false;
 
+    // TODO record & display socket latency on the client
+    // TODO display debug mode on client
+    var last_received;
+
+    // Toggle led state
     btn.addEventListener("click", function(event) {
         console.log("Client button clicked");
         led = !led
@@ -20,8 +26,10 @@
     // Receive current GPIO state
     socket.addEventListener("message", ev => {
         console.log(ev.data);
+        var seconds = new Date().getTime() / 1000;
         socket.send(JSON.stringify({
-            "led": led
+            "led": led,
+            "client_time": seconds
         }));
     });
 </script>
