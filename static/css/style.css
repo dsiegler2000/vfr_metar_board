@@ -5,6 +5,10 @@
     background-color: whitesmoke;
 }
 
+#p {
+    font-family: 'Courier';
+}
+
 body {
     background-color: darkblue;
     max-height: 800px;

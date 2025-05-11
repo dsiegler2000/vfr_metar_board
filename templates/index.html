@@ -2,8 +2,10 @@
 
 {% block title %} VFR {% endblock %}
 {% block content %}
-    <p id="time">Client time</p>
-    <p>Server time</p>
+    <p id="debug_info">{{ debug_info }}</p>
+    <p id="socket_info"></p>
+    <p>{{ metar }}</p>
+    <p>{{ taf }}</p>
     <button id="button">Press me!</button>
 
 <script>
@@ -13,9 +15,7 @@
     // TODO better manage client side requested GPIO state
     var led = false;
 
-    // TODO record & display socket latency on the client
-    // TODO display debug mode on client
-    var last_received;
+    var last_received = 0;
 
     // Toggle led state
     btn.addEventListener("click", function(event) {
@@ -27,11 +27,31 @@
     socket.addEventListener("message", ev => {
         console.log(ev.data);
         var seconds = new Date().getTime() / 1000;
+        last_received = seconds
+        // document.getElementById("debug_info").textContent = ev.data.debug ? "DEBUG" : "PROD"
         socket.send(JSON.stringify({
             "led": led,
             "client_time": seconds
         }));
     });
+
+    function reload() {
+        location.reload(true);
+    }
+
+    setInterval(function(){
+        var seconds = new Date().getTime() / 1000;
+        var diff = (seconds - last_received).toFixed(2)
+        var socket_info = document.getElementById("socket_info")
+        socket_info.innerText = "PING: " + diff + "s"
+        if (diff > 3) {
+            socket_info.style.color = "red"
+        } else if (diff > 1) {
+            socket_info.style.color = "gold"
+        } else {
+            socket_info.style.color = "green"
+        }
+    }, 100);
 </script>
 
 {% endblock %}
