@@ -52,20 +52,12 @@ def image_testing(icao):
 def dynamicassets_metar(icao):
     airport = airports.get_airport_info(icao)
     metar = weather.fetch_latest_metar(icao)
-    rwi_all = airport.compute_rw_wind(metar)
-    print("ident: xw, hw")
-    for rwi in rwi_all:
-        print(f"{rwi.runway.le_ident if rwi.favorable_dir == 'le' else rwi.runway.he_ident}: {rwi.max_crosswind} {'R' if rwi.max_crosswind > 0 else 'L'}, {rwi.max_headwind}")
-    # print(best.runway)
-    # print("crosswind then headwind")
-    # print(best.max_crosswind)
-    # print(best.max_headwind)
     buffer = render_metar_wind(metar, airport)
     return send_file(
         buffer,
         as_attachment=True,
-        download_name='koak.svg',
-        mimetype='image/svg+xml'
+        download_name=f"{icao}.svg",
+        mimetype="image/svg+xml"
     )
 
 @app.route("/favicon.ico")

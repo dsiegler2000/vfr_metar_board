@@ -62,6 +62,8 @@ class RunwayWindInfo:
 
     def __init__(self, runway: Runway, wind: Wind, fast_compute=False):
         # TODO add fast computation mode that doesn't consider wind variation for speeding up historical computations
+        if fast_compute:
+            raise ValueError("fast_compute is not yet supported!")
         self.runway = runway
         self.wind = wind
 
@@ -148,7 +150,7 @@ class Airport:
         return self._unique_runways
     unique_runways = property(get_unique_runways)
 
-    def compute_rw_wind(self, metar: Metar, unique_rws_only=True):
+    def compute_rw_wind(self, metar, unique_rws_only=True):
         """
         Returns tuple of (runway, headwind, crosswind), sorted by headwind, crosswind. 
         """

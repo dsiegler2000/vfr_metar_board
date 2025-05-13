@@ -18,16 +18,25 @@
     "rendering": {
         "runway": {
             "size": [360, 360],
-            "rw_size": [0.12, 0.9],
+            "rw_size": [0.09, 0.68],
             "background_rw_alpha": 0.5,
 
             "threshold_n_bars": 5,
-            "threshold_bars_width": 0.01,
-            "threshold_bars_height": 0.08,
-            "threshold_vertical_offset": 0.01,
+            "threshold_bars_width": 0.007,
+            "threshold_bars_height": 0.06,
+            "threshold_vertical_offset": 0.008,
 
-            "numbers_vertical_offset": 0.05,
-            "numbers_font_size": 0.05
+            "numbers_vertical_offset": 0.03,
+            "numbers_font_size": 0.035,
+
+            "compass_radius": 0.45,
+            "compass_outline_alpha": 0.0,
+            "compass_majortick_line_width": 0.008,
+            "compass_minortick_line_width": 0.005,
+            "compass_majortick_offsets": [0.03, 0.05],
+            "compass_minortick_offsets": [0.03, 0.01],
+            "compass_font_size": 0.045,
+            "compass_minortick_alpha": 0.7
         }
     }
 }
