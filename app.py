@@ -2,66 +2,85 @@ import os
 import time
 
 from flask import Flask, render_template, send_from_directory, send_file
-# from flask_sock import Sock
+from flask_sock import Sock
+from werkzeug.wsgi import FileWrapper
 
-# import airport_info as airports
-# from aviation_weather import fetch_latest_metar, fetch_latest_taf
-# from render import render_metar
+import airport_info as airports
+import aviation_weather as weather
+from render import render_metar_wind
 
 app = Flask(__name__)
 
-# sock = Sock()
-# sock.init_app(app)
+sock = Sock()
+sock.init_app(app)
 
 if app.debug:
     print(f"FLASK DEBUG MODE ENABLED - GPIO SET TO MOCK")
-    # os.environ["GPIOZERO_PIN_FACTORY"] = os.environ.get("GPIOZERO_PIN_FACTORY", "mock")
+    os.environ["GPIOZERO_PIN_FACTORY"] = os.environ.get("GPIOZERO_PIN_FACTORY", "mock")
 else:
     print(f"FLASK PROD MODE ENABLED - GPIO SET TO HARDWARE")
 
-# from gpio_flask import flask_gpio_manager
-# flask_gpio_manager.debug = app.debug
+from gpio_flask import flask_gpio_manager
+flask_gpio_manager.debug = app.debug
 
-# TEST_ICAOS = [
-#     "ksfo",
-#     "ksck",
-#     "ksql",
-#     "sfo",
-#     "sck",
-#     "sql"
-# ]
-# for a in TEST_ICAOS:
-#     print(f"http://127.0.0.1:5000/testing/{a}")
+TEST_ICAOS = [
+    "ksfo",
+    "ksck",
+    "ksql",
+    "sfo",
+    "sck",
+    "sql"
+]
+for a in TEST_ICAOS:
+    print(f"http://127.0.0.1:5000/testing/{a}")
 
-# @app.route("/testing/<icao>")
-# def testing_icao(icao):
-#     print("a")
-#     metar = fetch_latest_metar(icao)
-#     taf = fetch_latest_taf(icao)
-#     t = int(time.time())
-#     return render_template("index.html", 
-#                            debug_info="DEBUG" if app.debug else "PROD",
-#                            metar=metar,
-#                            taf=taf)
+@app.route("/testing/<icao>")
+def testing_icao(icao):
+    metar = weather.fetch_latest_metar(icao)
+    taf = weather.fetch_latest_taf(icao)
+    return render_template("index.html", 
+                           debug_info="DEBUG" if app.debug else "PROD",
+                           metar=metar,
+                           taf=taf)
 
-# @app.route("/image_testing")
-# def get_image():
-#     return send_file(render_metar(fetch_latest_metar("KOAK")), mimetype="image/png")
+@app.route("/metar/<icao>")
+def image_testing(icao):
+    return render_template("metar.html", 
+                           icao=icao)
 
-# @app.route("/favicon.ico")
-# def favicon():
-#     return send_from_directory(os.path.join(app.root_path, "static"), "favicon.ico", mimetype="image/vnd.microsoft.icon")
+@app.route("/dynamicassets/<icao>.svg")
+def dynamicassets_metar(icao):
+    airport = airports.get_airport_info(icao)
+    metar = weather.fetch_latest_metar(icao)
+    rwi_all = airport.compute_rw_wind(metar)
+    print("ident: xw, hw")
+    for rwi in rwi_all:
+        print(f"{rwi.runway.le_ident if rwi.favorable_dir == 'le' else rwi.runway.he_ident}: {rwi.max_crosswind} {'R' if rwi.max_crosswind > 0 else 'L'}, {rwi.max_headwind}")
+    # print(best.runway)
+    # print("crosswind then headwind")
+    # print(best.max_crosswind)
+    # print(best.max_headwind)
+    buffer = render_metar_wind(metar, airport)
+    return send_file(
+        buffer,
+        as_attachment=True,
+        download_name='koak.svg',
+        mimetype='image/svg+xml'
+    )
+
+@app.route("/favicon.ico")
+def favicon():
+    return send_from_directory(os.path.join(app.root_path, "static"), "favicon.ico", mimetype="image/vnd.microsoft.icon")
 
 @app.route("/")
 def root():
-    print("hit!")
-    return "Hi"
+    return "Boop."
 
-# @sock.route("/echo")
-# def echo(ws):
-#     fgm = flask_gpio_manager
-#     fgm.send_gpio_state(ws, app.debug)
-#     while True:
-#         data = ws.receive()
-#         fgm.read_client_commands(data)
-#         fgm.send_gpio_state(ws, app.debug)
+@sock.route("/echo")
+def echo(ws):
+    fgm = flask_gpio_manager
+    fgm.send_gpio_state(ws, app.debug)
+    while True:
+        data = ws.receive()
+        fgm.read_client_commands(data)
+        fgm.send_gpio_state(ws, app.debug)

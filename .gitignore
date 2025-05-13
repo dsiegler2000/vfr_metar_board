@@ -3,6 +3,7 @@ env/
 data/airport_info/airport_db/
 data/airport_info/azos/
 data/keys/
+debug/
 .lgd-nfy0*
 __pycache__/
 .vscode/

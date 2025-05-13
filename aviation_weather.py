@@ -29,7 +29,6 @@ def aviationweather_api_request(url, **params):
 
     return response.text
 
-# TODO make fetch functions return the actual objects
 def fetch_latest_metar(icao_id, madis=False, retry_kilo=True):
     if madis:
         raise ValueError("MADIS METAR is not currently supported")

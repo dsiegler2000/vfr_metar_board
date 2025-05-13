@@ -1,0 +1,7 @@
+{% extends 'base.html' %}
+
+{% block title %} VFR {% endblock %}
+{% block content %}
+    <p>{{ icao }}</p>
+    <img src="{{ url_for('dynamicassets_metar', icao=icao) }}"/>
+{% endblock %}

@@ -2,10 +2,12 @@
     "azos_airport_info_fp": "data/airport_info/azos",
     "airportdb_airport_info_fp": "data/airport_info/airport_db",
     "airportdb_token_fp": "data/keys/airportdb_token.txt",
+    "debug_fp": "debug",
 
     "create_on_init_fps": [
         "azos_airport_info_fp",
-        "airportdb_airport_info_fp"
+        "airportdb_airport_info_fp",
+        "debug_fp"
     ],
 
     "gpio": {
@@ -14,9 +16,18 @@
     },
 
     "rendering": {
-        "metar": {
+        "runway": {
             "size": [360, 360],
-            "rw_size": [40, 320]
+            "rw_size": [0.12, 0.9],
+            "background_rw_alpha": 0.5,
+
+            "threshold_n_bars": 5,
+            "threshold_bars_width": 0.01,
+            "threshold_bars_height": 0.08,
+            "threshold_vertical_offset": 0.01,
+
+            "numbers_vertical_offset": 0.05,
+            "numbers_font_size": 0.05
         }
     }
 }
