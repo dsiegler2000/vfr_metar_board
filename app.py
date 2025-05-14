@@ -52,9 +52,11 @@ def image_testing(icao):
 def dynamicassets_metar(icao):
     airport = airports.get_airport_info(icao)
     metar = weather.fetch_latest_metar(icao)
-    buffer = render_metar_wind(metar, airport)
+    wind_buffer = render_metar_wind(metar, airport)
+    # TODO render cloud coverage - depict as a simple rectangular bar with shading to indicate layers & text next to it
+    # TODO add a table for XW info, & altimeter setting, temp, dewpoint, etc
     return send_file(
-        buffer,
+        wind_buffer,
         as_attachment=True,
         download_name=f"{icao}.svg",
         mimetype="image/svg+xml"

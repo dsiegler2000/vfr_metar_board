@@ -1,9 +1,12 @@
 """Code to render dynamic assets"""
 from config import config
+from utils import coalesce
 
-from math import pi, radians, sin, cos
+from math import pi, radians, sqrt
 from io import BytesIO
 import cairo
+from airport_info import RunwayWindInfo, Airport
+from metar_taf_parser.parser.parser import Metar
 
 RENDERING_CONFIG = config["rendering"]
 RW_CONFIG = RENDERING_CONFIG["runway"]
@@ -14,16 +17,15 @@ def _centered_rectangle(cr, x_center, y_center, width, height):
 def _centered_text(cr, x_center, y_center, s, theta=0):
     x, y, text_width, text_height, dx, dy = cr.text_extents(s)
     cr.save()
-    if s == "N":
-        print(x_center, text_width)
     cr.move_to(x_center - (text_width / 2), y_center + (text_height / 2))
     cr.rotate(theta)
     cr.show_text(s)
     cr.restore()
 
-def _render_runway(cr: cairo.Context, rw, background_mode=False):
+def _render_runway(cr: cairo.Context, rwi: RunwayWindInfo, background_mode=False):
     cr.save()
 
+    rw = rwi.runway
     alpha = RW_CONFIG["background_rw_alpha"] if background_mode else 1
 
     # Rotate & offset so drawing is relative to 0, 0
@@ -57,8 +59,37 @@ def _render_runway(cr: cairo.Context, rw, background_mode=False):
     numbers_vertical_offset = RW_CONFIG["numbers_vertical_offset"]
     voffset = (rwh / 2) - numbers_vertical_offset - (0 if background_mode else (threshold_vertical_offset + threshold_bars_height))
     _centered_text(cr, 0,  voffset, rw.le_ident)
-    _centered_text(cr, 0, -voffset, rw.he_ident)
+    _centered_text(cr, 0, -voffset, rw.he_ident, theta=pi)
     cr.stroke()
+
+    # Wind info - drawn as arrows with appropriate colors
+    # TODO
+    #  fix centering of the RW heading text issue - likely just remove the function
+    #  implement these wind ticks - remember to ensure the right/left direction is properly flipped
+    #  add arrowheads
+    #  color based on strength (white/green, yellow, red)
+    #  maybe include text outline for visibility
+    rwi.is_preferred_rw_info = "le"
+    if not background_mode and rwi.is_preferred_rw_info in ("le", "he"):
+        # Use sign multiplier to ensure positive values are right, negative left
+        s = (-1 if rwi.is_preferred_rw_info == "he" else 1)
+        voffset += s * 0.05
+
+        print(rwi.max_headwind, rwi.max_crosswind)
+        hw, xw = rwi.max_headwind, rwi.max_crosswind
+        hw, xw = 5, 5
+        
+        wind_tick_length = RW_CONFIG["wind_tick_length"]
+        cr.set_source_rgba(1, 0, 0, 1)
+        cr.set_line_width(RW_CONFIG["wind_tick_line_width"])
+
+        cr.move_to(0, s * voffset)
+        cr.line_to(s * xw * wind_tick_length, s * voffset)
+        cr.stroke()
+
+        cr.move_to(0, s * voffset)
+        cr.line_to(0, (s * voffset) + (hw * wind_tick_length))
+        cr.stroke()
     
     cr.restore()
 
@@ -131,10 +162,9 @@ def _render_wind_compass(cr, wind):
 
     # Draw wind info - color indicates strength
     if wind.degrees is not None:
-        print(wind)
         cr.save()
         cr.set_line_width(0.01)
-        cr.set_source_rgba(0, 1, 0, 1)
+        cr.set_source_rgba(0, 0, 0, 1)
 
         cr.translate(0.5, 0.5)
         cr.rotate((-pi / 2) + radians(wind.degrees))
@@ -143,22 +173,26 @@ def _render_wind_compass(cr, wind):
         cr.stroke()
 
         # Arrowhead
-        cr.move_to(r - 0.05, 0)
-        cr.line_to(r, 0.02)
-        cr.line_to(r, -0.02)
+        w, h = RW_CONFIG["wind_arrow_width"], RW_CONFIG["wind_arrow_height"]
+        ws = min(coalesce(wind.gust, wind.speed), 45)
+        s = ws
+        scaled_w, scaled_h = sqrt(5 * s) * w, s * h
+        cr.move_to(r - scaled_h, 0)
+        cr.line_to(r,  scaled_w)
+        cr.line_to(r, -scaled_w)
         cr.close_path()
         cr.fill()
 
         cr.move_to(-r, 0)
-        cr.line_to(-r + 0.05, 0.02)
-        cr.line_to(-r + 0.05, -0.02)
+        cr.line_to(-r + scaled_h,  scaled_w)
+        cr.line_to(-r + scaled_h, -scaled_w)
         cr.close_path()
         cr.fill()
 
         cr.stroke()
         cr.restore()
 
-def render_metar_wind(metar, airport):
+def render_metar_wind(metar: Metar, airport: Airport):
     w, h = RW_CONFIG["size"]
 
     output = BytesIO()
@@ -172,15 +206,14 @@ def render_metar_wind(metar, airport):
     cr.rectangle(0, 0, 1, 1)
     cr.fill()
 
-    # TODO color wind compass arrow correctly
     _render_wind_compass(cr, metar.wind)
 
     rwis = airport.compute_rw_wind(metar, unique_rws_only=True)
     for i, rwi in enumerate(rwis):
         # Highlight favored runway
-        _render_runway(cr, rwi.runway, background_mode=i > 0)
+        _render_runway(cr, rwi, background_mode=i > 0)
 
-    # TODO add wind strength info
+    # TODO add wind strength info as a sliding bar
 
     surface.flush()
     surface.finish()

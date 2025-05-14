@@ -9,9 +9,9 @@ from config import config
 from dataclasses import dataclass
 import re
 from math import radians, sin, cos
+from typing_extensions import Literal
 
 from utils import coalesce_int_from_float, coalesce_float, coalesce
-from metar_taf_parser.parser.parser import Metar
 from metar_taf_parser.model.model import Wind
 
 @dataclass
@@ -48,24 +48,26 @@ class RunwayWindInfo:
     runway: Runway
     wind: Wind
 
-    # "le", "he", or "calm" (VRB)
-    favorable_dir: str
+    favorable_dir: Literal["le", "he"]
+    # le will be preferred
+    is_preferred_rw_info: Literal["le", "he", "no", "unk", None]
 
     # True iff wind is gusting, VRB, or has variation
     variation: bool
 
-    # Positive values indicate headwind & RIGHT crosswinds
+    # Positive values indicate headwind & RIGHT crosswinds, & if no gust then both values will be equal
     min_headwind: float
     max_headwind: float
     min_crosswind: float
     max_crosswind: float
 
-    def __init__(self, runway: Runway, wind: Wind, fast_compute=False):
+    def __init__(self, runway: Runway, wind: Wind, is_preferred_rw_info: Literal["le", "he", "no", "unk"]="unk", fast_compute: bool=False):
         # TODO add fast computation mode that doesn't consider wind variation for speeding up historical computations
         if fast_compute:
             raise ValueError("fast_compute is not yet supported!")
         self.runway = runway
         self.wind = wind
+        self.is_preferred_rw_info = is_preferred_rw_info
 
         if wind.direction == "VRB":
             self.variation = True
@@ -115,7 +117,6 @@ class RunwayWindInfo:
             self.max_crosswind = max([w[0] for w in computed_winds if w[2] == self.favorable_dir])
             self.min_headwind = min([w[1] for w in computed_winds if w[2] == self.favorable_dir])
             self.max_headwind = max([w[1] for w in computed_winds if w[2] == self.favorable_dir])
-            # self.max_crosswind, self.max_headwind = self._compute_wind_info(wind.degrees, wind.speed, "he")
 
     def _compute_wind_info(self, dir, strength, runway_end):
         """Returns crosswind, headwind"""
@@ -157,6 +158,8 @@ class Airport:
         rws_wind_info = []
         rws = self.unique_runways if unique_rws_only else self.runways
         rws_wind_info = sorted([RunwayWindInfo(rw, metar.wind) for rw in rws], key=lambda rwi: rwi.max_headwind, reverse=True)
+        dir = rws_wind_info[0].favorable_dir
+        rws_wind_info[0].is_preferred_rw_info = ("le" if dir == "calm" else dir)
         return rws_wind_info
         
 def prefetch_azos_airport_info(check_cache=True):
@@ -285,4 +288,3 @@ def autocorrect_icao(airport_id):
     airport_id = airport_id.lower()
     if airport_id.startswith("k") and len(airport_id) == 4:
         return airport_id[1:]
-# %%
