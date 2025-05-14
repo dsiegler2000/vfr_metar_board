@@ -20,7 +20,7 @@ from metar_taf_parser.parser.parser import MetarParser, TAFParser
 AVIATIONWEATHER_METAR_API_URL = "https://aviationweather.gov/api/data/metar"
 AVIATIONWEATHER_TAF_API_URL = "https://aviationweather.gov/api/data/taf"
 
-def aviationweather_api_request(url, **params):
+def aviationweather_api_request(url: str, **params):
     full_url = f"{url}?{urllib.parse.urlencode(params)}"
     response = requests.get(full_url)
 
@@ -29,20 +29,21 @@ def aviationweather_api_request(url, **params):
 
     return response.text
 
-def fetch_latest_metar(icao_id, madis=False, retry_kilo=True):
+def fetch_latest_metar(icao_like_id: str, madis: bool=False, retry_kilo: bool=True):
     if madis:
         raise ValueError("MADIS METAR is not currently supported")
+    icao_like_id = icao_like_id.lower()
     metar_text = aviationweather_api_request(AVIATIONWEATHER_METAR_API_URL, 
-                                             ids=icao_id)
+                                             ids=icao_like_id)
     try: 
         metar = MetarParser().parse(metar_text)
         return metar
     except:
-        if retry_kilo:
-            return fetch_latest_metar(icao_id, retry_kilo=False)
+        if retry_kilo and (not (icao_like_id.startswith("k") and len(icao_like_id) == 4)):
+            return fetch_latest_metar("k" + icao_like_id, retry_kilo=False)
         return None
 
-def fetch_latest_taf(icao_like_id, retry_kilo=True):
+def fetch_latest_taf(icao_like_id: str, retry_kilo: bool=True):
     icao_like_id = icao_like_id.lower()
     taf_text = aviationweather_api_request(AVIATIONWEATHER_TAF_API_URL, 
                                            ids=icao_like_id)
@@ -62,7 +63,7 @@ def fetch_latest_taf(icao_like_id, retry_kilo=True):
             return fetch_latest_taf("k" + icao_like_id, retry_kilo=False)
         return ""
     
-def fetch_historical_metar(icao_like_id, retry_no_kilo=True, check_cache=True):
+def fetch_historical_metar(icao_like_id: str, retry_no_kilo: bool=True, check_cache: bool=True):
     # TODO fetch & process historical data for fast access in the future
     # need to be mindful of memory requirements - ksck has 5m reports & going back to mid 2016, the file size is 167mb
     # can mostly copy previous code

@@ -3,5 +3,7 @@
 {% block title %} VFR {% endblock %}
 {% block content %}
     <p>{{ icao }}</p>
-    <img src="{{ url_for('dynamicassets_metar', icao=icao) }}"/>
+    <img src="{{ url_for('dynamicassets_metar_wind', icao=icao) }}"/>
+    <br>
+    <img src="{{ url_for('dynamicassets_metar_additional_info', icao=icao) }}"/>
 {% endblock %}

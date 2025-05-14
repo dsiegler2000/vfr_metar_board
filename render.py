@@ -2,27 +2,35 @@
 from config import config
 from utils import coalesce
 
-from math import pi, radians, sqrt
+from math import pi, radians, sqrt, sin, cos
 from io import BytesIO
 import cairo
 from airport_info import RunwayWindInfo, Airport
 from metar_taf_parser.parser.parser import Metar
+from metar_taf_parser.model.model import Wind
 
 RENDERING_CONFIG = config["rendering"]
 RW_CONFIG = RENDERING_CONFIG["runway"]
 
-def _centered_rectangle(cr, x_center, y_center, width, height):
+N_MAJOR_SEGMENTS = 12
+N_MINOR_SEGMENTS = 72
+
+# Wind gauge color maps for active (wind is at least this strong) & inactive states
+WIND_GAUGE_ACTIVE_COLOR_MAP = dict()
+WIND_GAUGE_INACTIVE_COLOR_MAP = dict()
+for wsi in range(1, (N_MINOR_SEGMENTS // 2) + 1):
+    for c in RW_CONFIG["wind_gauge_active_color_bands"][::-1]:
+        if wsi <= c[0]:
+            WIND_GAUGE_ACTIVE_COLOR_MAP[wsi] = c[1:]
+for wsi in range(1, (N_MINOR_SEGMENTS // 2) + 1):
+    for c in RW_CONFIG["wind_gauge_inactive_color_bands"][::-1]:
+        if wsi <= c[0]:
+            WIND_GAUGE_INACTIVE_COLOR_MAP[wsi] = c[1:]
+
+def _centered_rectangle(cr: cairo.Context, x_center, y_center, width, height):
     cr.rectangle(x_center - width / 2, y_center - height / 2, width, height)
 
-def _centered_text(cr, x_center, y_center, s, theta=0):
-    x, y, text_width, text_height, dx, dy = cr.text_extents(s)
-    cr.save()
-    cr.move_to(x_center - (text_width / 2), y_center + (text_height / 2))
-    cr.rotate(theta)
-    cr.show_text(s)
-    cr.restore()
-
-def _render_runway(cr: cairo.Context, rwi: RunwayWindInfo, background_mode=False):
+def _render_runway(cr: cairo.Context, rwi: RunwayWindInfo, background_mode: bool=False):
     cr.save()
 
     rw = rwi.runway
@@ -57,43 +65,25 @@ def _render_runway(cr: cairo.Context, rwi: RunwayWindInfo, background_mode=False
     cr.select_font_face("Clearview", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
     cr.set_font_size(RW_CONFIG["numbers_font_size"])
     numbers_vertical_offset = RW_CONFIG["numbers_vertical_offset"]
+
+    s = rw.le_ident
     voffset = (rwh / 2) - numbers_vertical_offset - (0 if background_mode else (threshold_vertical_offset + threshold_bars_height))
-    _centered_text(cr, 0,  voffset, rw.le_ident)
-    _centered_text(cr, 0, -voffset, rw.he_ident, theta=pi)
+    x, y, text_width, text_height, dx, dy = cr.text_extents(s)
+    cr.move_to(-(text_width / 2), voffset + (text_height / 2))
+    cr.show_text(s)
     cr.stroke()
 
-    # Wind info - drawn as arrows with appropriate colors
-    # TODO
-    #  fix centering of the RW heading text issue - likely just remove the function
-    #  implement these wind ticks - remember to ensure the right/left direction is properly flipped
-    #  add arrowheads
-    #  color based on strength (white/green, yellow, red)
-    #  maybe include text outline for visibility
-    rwi.is_preferred_rw_info = "le"
-    if not background_mode and rwi.is_preferred_rw_info in ("le", "he"):
-        # Use sign multiplier to ensure positive values are right, negative left
-        s = (-1 if rwi.is_preferred_rw_info == "he" else 1)
-        voffset += s * 0.05
+    s = rw.he_ident
+    voffset = (rwh / 2) - numbers_vertical_offset - (0 if background_mode else (threshold_vertical_offset + threshold_bars_height))
+    x, y, text_width, text_height, dx, dy = cr.text_extents(s)
+    cr.move_to((text_width / 2), -voffset - (text_height / 2))
+    cr.rotate(pi)
+    cr.show_text(s)
+    cr.stroke()
 
-        print(rwi.max_headwind, rwi.max_crosswind)
-        hw, xw = rwi.max_headwind, rwi.max_crosswind
-        hw, xw = 5, 5
-        
-        wind_tick_length = RW_CONFIG["wind_tick_length"]
-        cr.set_source_rgba(1, 0, 0, 1)
-        cr.set_line_width(RW_CONFIG["wind_tick_line_width"])
-
-        cr.move_to(0, s * voffset)
-        cr.line_to(s * xw * wind_tick_length, s * voffset)
-        cr.stroke()
-
-        cr.move_to(0, s * voffset)
-        cr.line_to(0, (s * voffset) + (hw * wind_tick_length))
-        cr.stroke()
-    
     cr.restore()
 
-def _render_wind_compass(cr, wind):
+def _render_wind_compass(cr: cairo.Context, wind: Wind):
     cr.save()
     cr.set_source_rgba(0, 0, 0, RW_CONFIG["compass_outline_alpha"])
     cr.set_line_width(RW_CONFIG["compass_majortick_line_width"])
@@ -113,14 +103,8 @@ def _render_wind_compass(cr, wind):
     # Rotate everything so north is facing up - note this virtually flips x & y axes
     cr.translate(0.5, 0.5)
     cr.rotate(-pi / 2)
-    n_major_segments = 12
-    offset = int(360 / n_major_segments)
-    for i in range(n_major_segments):
-        # Draw major tick
-        cr.move_to(r + RW_CONFIG["compass_majortick_offsets"][0], 0)
-        cr.line_to(r - RW_CONFIG["compass_majortick_offsets"][1], 0)
-        cr.stroke()
-
+    offset = int(360 / N_MAJOR_SEGMENTS)
+    for i in range(N_MAJOR_SEGMENTS):
         hdg = i * offset
         if hdg == 0:
             s = "N"
@@ -132,6 +116,10 @@ def _render_wind_compass(cr, wind):
             s = "W"
         else:
             s = str(int(hdg / 10))
+        # Draw major tick
+        cr.move_to(r + RW_CONFIG["compass_majortick_offsets"][0] + (RW_CONFIG["compass_northtick_extension"] if s == "N" else 0), 0)
+        cr.line_to(r - RW_CONFIG["compass_majortick_offsets"][1], 0)
+        cr.stroke()
         
         x, y, text_width, text_height, dx, dy = cr.text_extents(s)
         # Weird axes due to rotation
@@ -143,40 +131,40 @@ def _render_wind_compass(cr, wind):
         cr.restore()
 
         # Rotate around circle
-        cr.rotate(2 * pi / n_major_segments)
+        cr.rotate(2 * pi / N_MAJOR_SEGMENTS)
     cr.restore()
 
     cr.save()
     cr.translate(0.5, 0.5)
     cr.rotate(-pi / 2)
-    n_minor_segments = 72
     cr.set_line_width(RW_CONFIG["compass_minortick_line_width"])
     cr.set_source_rgba(0, 0, 0, RW_CONFIG["compass_minortick_alpha"])
-    for i in range(n_minor_segments):
+    for i in range(N_MINOR_SEGMENTS):
         # Right side of circle
         cr.move_to(r + RW_CONFIG["compass_minortick_offsets"][0], 0)
         cr.line_to(r - RW_CONFIG["compass_minortick_offsets"][1], 0)
         cr.stroke()
-        cr.rotate(2 * pi / n_minor_segments)
+        cr.rotate(2 * pi / N_MINOR_SEGMENTS)
     cr.restore()
 
-    # Draw wind info - color indicates strength
+    # Draw wind pointer
     if wind.degrees is not None:
+        w, h = RW_CONFIG["wind_arrow_width"], RW_CONFIG["wind_arrow_height"]
+        ws = min(coalesce(wind.gust, wind.speed), 45)
+        scaled_w, scaled_h = sqrt(5 * ws) * w, ws * h
+
         cr.save()
         cr.set_line_width(0.01)
         cr.set_source_rgba(0, 0, 0, 1)
 
+        # Wind line
         cr.translate(0.5, 0.5)
         cr.rotate((-pi / 2) + radians(wind.degrees))
         cr.move_to(r, 0)
-        cr.line_to(-r, 0)
+        cr.line_to(-r + scaled_h, 0)
         cr.stroke()
 
         # Arrowhead
-        w, h = RW_CONFIG["wind_arrow_width"], RW_CONFIG["wind_arrow_height"]
-        ws = min(coalesce(wind.gust, wind.speed), 45)
-        s = ws
-        scaled_w, scaled_h = sqrt(5 * s) * w, s * h
         cr.move_to(r - scaled_h, 0)
         cr.line_to(r,  scaled_w)
         cr.line_to(r, -scaled_w)
@@ -192,9 +180,29 @@ def _render_wind_compass(cr, wind):
         cr.stroke()
         cr.restore()
 
-def render_metar_wind(metar: Metar, airport: Airport):
-    w, h = RW_CONFIG["size"]
+def _render_wind_gauge(cr: cairo.Context, wind: Wind):
+    cr.save()
+    cr.set_source_rgba(1, 0, 0, 1)
+    cr.translate(0.5, 0.5)
 
+    ws = coalesce(wind.gust, wind.speed, 1)
+    r = RW_CONFIG["compass_radius"] + RW_CONFIG["wind_gauge_radius_extension"]
+    n_rectangles = N_MINOR_SEGMENTS // 2
+
+    # Rotate so we start at north
+    cr.rotate(-pi / 2 + (pi / n_rectangles))
+
+    # Draw rectanges in circular pattern with appropriate colors
+    for wsi in range(1, n_rectangles + 1):
+        cm = WIND_GAUGE_ACTIVE_COLOR_MAP if wsi <= ws else WIND_GAUGE_INACTIVE_COLOR_MAP
+        rgba = cm[wsi] if wsi in cm.keys() else (0, 0, 0, 1)
+        cr.set_source_rgba(*rgba)
+        _centered_rectangle(cr, r, 0, RW_CONFIG["wind_gauge_rectangle_height"], RW_CONFIG["wind_gauge_rectangle_width"])
+        cr.fill()
+        cr.rotate(2 * pi / n_rectangles)
+    cr.restore()
+
+def _setup_canvas(w, h, background_rgba=(0, 0, 0, 0)):
     output = BytesIO()
     surface = cairo.SVGSurface(output, w, h)
     cr = cairo.Context(surface)
@@ -202,10 +210,26 @@ def render_metar_wind(metar: Metar, airport: Airport):
     cr.scale(w, h)
 
     # Background
-    cr.set_source_rgba(0, 0, 0, 0)
+    cr.set_source_rgba(*background_rgba)
     cr.rectangle(0, 0, 1, 1)
     cr.fill()
 
+    return output, surface, cr
+
+def _cleanup_canvas(surface, output):
+    surface.flush()
+    surface.finish()
+
+    output.flush()
+    output.seek(0)
+
+    return output
+
+def render_metar_wind(metar: Metar, airport: Airport):
+    w, h = RW_CONFIG["size"]
+    output, surface, cr = _setup_canvas(w, h)
+
+    _render_wind_gauge(cr, metar.wind)
     _render_wind_compass(cr, metar.wind)
 
     rwis = airport.compute_rw_wind(metar, unique_rws_only=True)
@@ -213,12 +237,15 @@ def render_metar_wind(metar: Metar, airport: Airport):
         # Highlight favored runway
         _render_runway(cr, rwi, background_mode=i > 0)
 
-    # TODO add wind strength info as a sliding bar
+    _cleanup_canvas(surface, output)
 
-    surface.flush()
-    surface.finish()
+    return output
 
-    output.flush()
-    output.seek(0)
+def render_metar_additional_info():
+    w, h = 360, 120
+    # TODO make component for VFR/IFR status, XW info, & altimeter setting, temp, dewpoint, etc - like metar taf display mode
+    output, surface, cr = _setup_canvas(w, h, background_rgba=(1, 0, 0, 1))
+
+    _cleanup_canvas(surface, output)
 
     return output

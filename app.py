@@ -7,7 +7,7 @@ from werkzeug.wsgi import FileWrapper
 
 import airport_info as airports
 import aviation_weather as weather
-from render import render_metar_wind
+from render import render_metar_wind, render_metar_additional_info
 
 app = Flask(__name__)
 
@@ -45,22 +45,38 @@ def testing_icao(icao):
 
 @app.route("/metar/<icao>")
 def image_testing(icao):
+    # TODO add a text box at the top for the metar text, in courier
     return render_template("metar.html", 
                            icao=icao)
 
-@app.route("/dynamicassets/<icao>.svg")
-def dynamicassets_metar(icao):
+@app.route("/dynamicassets/metar_wind/<icao>.svg")
+def dynamicassets_metar_wind(icao):
     airport = airports.get_airport_info(icao)
     metar = weather.fetch_latest_metar(icao)
     wind_buffer = render_metar_wind(metar, airport)
+
     # TODO render cloud coverage - depict as a simple rectangular bar with shading to indicate layers & text next to it
-    # TODO add a table for XW info, & altimeter setting, temp, dewpoint, etc
+    # TODO implement a request context that is equal to the current timestamp in milliseconds, then cache things like metar & taf for that request
+    #    so the call would look like fetch_latest_metar(icao, request_id) - within the function, it checks an ephemeral cache
     return send_file(
         wind_buffer,
         as_attachment=True,
-        download_name=f"{icao}.svg",
+        download_name=f"{icao}_wind.svg",
         mimetype="image/svg+xml"
     )
+
+@app.route("/dynamicassets/metar_additional_info/<icao>.svg")
+def dynamicassets_metar_additional_info(icao):
+    additional_info_buffer = render_metar_additional_info()    
+    return send_file(
+        additional_info_buffer,
+        as_attachment=True,
+        download_name=f"{icao}_metar_info.svg",
+        mimetype="image/svg+xml"
+    )
+
+def dynamicassets_metar_cloudcover():
+    pass
 
 @app.route("/favicon.ico")
 def favicon():

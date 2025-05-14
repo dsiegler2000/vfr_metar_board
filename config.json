@@ -31,17 +31,31 @@
 
             "compass_radius": 0.45,
             "compass_outline_alpha": 0.0,
-            "compass_majortick_line_width": 0.008,
-            "compass_minortick_line_width": 0.005,
+            "compass_majortick_line_width": 0.005,
+            "compass_minortick_line_width": 0.004,
             "compass_majortick_offsets": [0.03, 0.05],
             "compass_minortick_offsets": [0.03, 0.01],
             "compass_font_size": 0.045,
             "compass_minortick_alpha": 0.7,
 
+            "compass_northtick_extension": 0.03,
+            "wind_gauge_radius_extension": 0.04,
+            "wind_gauge_rectangle_width": 0.080,
+            "wind_gauge_rectangle_height": 0.015,
+            "_comment": "[wind speed speed threshold, r, g, b, a]",
+            "wind_gauge_active_color_bands": [
+                [10, 0.2, 0.8, 0.2, 1.0],
+                [20, 0.8, 0.75, 0.05, 1.0],
+                [36, 1.0, 0.0, 0.0, 1.0]
+            ],
+            "wind_gauge_inactive_color_bands": [
+                [10, 0.0, 1.0, 0.0, 0.2],
+                [20, 1.0, 1.0, 0.0, 0.3],
+                [36, 0.8, 0.0, 0.0, 0.15]
+            ],
+
             "wind_arrow_width": 0.004,
-            "wind_arrow_height": 0.01,
-            "wind_tick_line_width": 0.008,
-            "wind_tick_length": 0.006
+            "wind_arrow_height": 0.01
         }
     }
 }
