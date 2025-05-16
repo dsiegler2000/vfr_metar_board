@@ -10,9 +10,11 @@ from dataclasses import dataclass
 import re
 from math import radians, sin, cos
 from typing_extensions import Literal
+import time
 
 from utils import coalesce_int_from_float, coalesce_float, coalesce
-from metar_taf_parser.model.model import Wind
+from metar_taf_parser.model.model import Wind, Metar
+from aviation_weather import fetch_latest_metar
 
 @dataclass
 class Runway:
@@ -126,7 +128,10 @@ class RunwayWindInfo:
 
 @dataclass
 class Airport:
-    """Airport info & utility functions constructed from raw info"""
+    """
+    Airport info & helper functions constructed from raw data. 
+    Includes METAR info included with the airport and caching logic. 
+    """
     ident: str
     icao_code: str
     iata_code: str
@@ -137,6 +142,11 @@ class Airport:
     iso_country: str
     runways: list
     frequencies: list
+
+    # Cached METAR info
+    _metar: Metar
+    _runway_wind_info: RunwayWindInfo
+    _last_metar_fetch_time: float
 
     _unique_runways = None
     def get_unique_runways(self):
@@ -151,17 +161,38 @@ class Airport:
         return self._unique_runways
     unique_runways = property(get_unique_runways)
 
-    def compute_rw_wind(self, metar, unique_rws_only=True):
+    def _compute_rw_wind(self, metar):
         """
-        Returns tuple of (runway, headwind, crosswind), sorted by headwind, crosswind. 
+        Returns tuple of (runway, headwind, crosswind), sorted by headwind, crosswind, only for unique runways. 
         """
+        # TODO cache this
+        # metar = self.fetch_current_metar()
         rws_wind_info = []
-        rws = self.unique_runways if unique_rws_only else self.runways
+        rws = self.unique_runways
         rws_wind_info = sorted([RunwayWindInfo(rw, metar.wind) for rw in rws], key=lambda rwi: rwi.max_headwind, reverse=True)
         dir = rws_wind_info[0].favorable_dir
         rws_wind_info[0].is_preferred_rw_info = ("le" if dir == "calm" else dir)
         return rws_wind_info
-        
+    
+    # TODO convert these to properties
+    def _fetch_current_metar(self, check_cache=True, cache_expiration_timeout=60):
+        """Fetch current METAR and cache with an expiration time in seconds"""
+        t = time.time()
+        if (not check_cache) or (self._last_metar_fetch_time is None) or (self._metar is None) or (t - self._last_metar_fetch_time > cache_expiration_timeout):
+            self._metar = fetch_latest_metar(coalesce(self.icao_code, self.ident))
+            self._runway_wind_info = self._compute_rw_wind(self._metar)
+            self._last_metar_fetch_time = t
+        return self._metar
+    
+    def _fetch_flight_category(self, check_cache=True, cache_expiration_timeout=60):
+        metar = fetch_latest_metar(check_cache=check_cache, cache_expiration_timeout=cache_expiration_timeout)
+        return "TODO"
+    
+    # TODO do everything in _fetch_current_metar, then have seperate getters etc
+    metar = property(_fetch_current_metar)
+    flight_category = property(_fetch_flight_category)
+    runway_info = property()
+    
 def prefetch_azos_airport_info(check_cache=True):
     """Fetches & caches airport info AZOS geojson & returns all airport FAA LIDs / ICAO codes"""
     # Cache check
@@ -185,7 +216,7 @@ def prefetch_azos_airport_info(check_cache=True):
 
     return [r["id"] for r in g["features"]]
 
-with open(config["airportdb_token_fp"], "r") as f:
+with open(os.path.join(config["keys_fp"], config["airportdb_token_fn"]), "r") as f:
     AIRPORTDB_KEY = f.read()
 
 prefetch_azos_airport_info()
@@ -235,7 +266,9 @@ def fetch_airportdb_airport_info(icao_code, check_cache=True):
                 type=f["type"],
                 description=f["description"],
                 frequency_mhz=f["frequency_mhz"]
-            ) for f in info["freqs"]]
+            ) for f in info["freqs"]],
+            _metar=None,
+            _last_metar_fetch_time=None
         )
 
 def fetch_azos_airport_info(icao_like_code):

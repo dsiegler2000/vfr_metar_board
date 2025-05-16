@@ -32,7 +32,7 @@ TEST_ICAOS = [
     "sql"
 ]
 for a in TEST_ICAOS:
-    print(f"http://127.0.0.1:5000/testing/{a}")
+    print(f"http://127.0.0.1:5000/metar/{a}")
 
 @app.route("/testing/<icao>")
 def testing_icao(icao):
@@ -46,18 +46,16 @@ def testing_icao(icao):
 @app.route("/metar/<icao>")
 def image_testing(icao):
     # TODO add a text box at the top for the metar text, in courier
+    # TODO update cache here
     return render_template("metar.html", 
                            icao=icao)
 
 @app.route("/dynamicassets/metar_wind/<icao>.svg")
 def dynamicassets_metar_wind(icao):
     airport = airports.get_airport_info(icao)
-    metar = weather.fetch_latest_metar(icao)
-    wind_buffer = render_metar_wind(metar, airport)
+    wind_buffer = render_metar_wind(airport)
 
     # TODO render cloud coverage - depict as a simple rectangular bar with shading to indicate layers & text next to it
-    # TODO implement a request context that is equal to the current timestamp in milliseconds, then cache things like metar & taf for that request
-    #    so the call would look like fetch_latest_metar(icao, request_id) - within the function, it checks an ephemeral cache
     return send_file(
         wind_buffer,
         as_attachment=True,
@@ -67,7 +65,9 @@ def dynamicassets_metar_wind(icao):
 
 @app.route("/dynamicassets/metar_additional_info/<icao>.svg")
 def dynamicassets_metar_additional_info(icao):
-    additional_info_buffer = render_metar_additional_info()    
+    # TODO this is inefficient - cache by minute!
+    airport = airports.get_airport_info(icao)
+    additional_info_buffer = render_metar_additional_info(airport)
     return send_file(
         additional_info_buffer,
         as_attachment=True,

@@ -1,12 +1,15 @@
 {
     "azos_airport_info_fp": "data/airport_info/azos",
     "airportdb_airport_info_fp": "data/airport_info/airport_db",
-    "airportdb_token_fp": "data/keys/airportdb_token.txt",
+    "keys_fp": "data/keys",
     "debug_fp": "debug",
+
+    "airportdb_token_fn": "airportdb_token.txt",
 
     "create_on_init_fps": [
         "azos_airport_info_fp",
         "airportdb_airport_info_fp",
+        "keys_fp",
         "debug_fp"
     ],
 
@@ -27,7 +30,7 @@
             "threshold_vertical_offset": 0.008,
 
             "numbers_vertical_offset": 0.03,
-            "numbers_font_size": 0.035,
+            "numbers_font_size": 0.04,
 
             "compass_radius": 0.45,
             "compass_outline_alpha": 0.0,

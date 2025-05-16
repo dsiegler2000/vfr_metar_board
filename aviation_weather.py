@@ -15,10 +15,16 @@ import requests
 import urllib.parse
 import re
 from metar_taf_parser.parser.parser import MetarParser, TAFParser
+from metar_taf_parser.parser import parser
 
 # API URLs
 AVIATIONWEATHER_METAR_API_URL = "https://aviationweather.gov/api/data/metar"
 AVIATIONWEATHER_TAF_API_URL = "https://aviationweather.gov/api/data/taf"
+
+# TODO create extended version of metar that includes vfr, ifr, lifr, etc
+#  or maybe just have this as functional extensions of the existing class...
+class Metar():
+    pass
 
 def aviationweather_api_request(url: str, **params):
     full_url = f"{url}?{urllib.parse.urlencode(params)}"
@@ -30,6 +36,7 @@ def aviationweather_api_request(url: str, **params):
     return response.text
 
 def fetch_latest_metar(icao_like_id: str, madis: bool=False, retry_kilo: bool=True):
+    print(f"FETCHING METAR FOR {icao_like_id}")
     if madis:
         raise ValueError("MADIS METAR is not currently supported")
     icao_like_id = icao_like_id.lower()

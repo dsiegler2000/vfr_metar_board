@@ -7,6 +7,7 @@ export FLASK_ENV=development
 flask --app app.py --debug run
 
 dsiegler@192.168.0.233
+# This should be updated to pipreq
 pip freeze > requirements.txt
 
 sudo apt-get install python-dev
@@ -15,3 +16,4 @@ sudo apt install python3-gpiozero
 ```
 
 Note: can get magnetic declination from https://aviationweather.gov/api/data/airport
+https://forums.flightsimulator.com/t/propwash-dual-encoder-question/404874

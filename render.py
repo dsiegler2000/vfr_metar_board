@@ -84,11 +84,44 @@ def _render_runway(cr: cairo.Context, rwi: RunwayWindInfo, background_mode: bool
     cr.restore()
 
 def _render_wind_compass(cr: cairo.Context, wind: Wind):
+    # Wind pointer
+    r = RW_CONFIG["compass_radius"]
+    if wind.degrees is not None:
+        w, h = RW_CONFIG["wind_arrow_width"], RW_CONFIG["wind_arrow_height"]
+        ws = min(coalesce(wind.gust, wind.speed), 45)
+        scaled_w, scaled_h = sqrt(5 * ws) * w, ws * h
+
+        cr.save()
+        cr.set_line_width(0.01)
+        cr.set_source_rgba(0, 0, 0, 1)
+
+        # Wind line
+        cr.translate(0.5, 0.5)
+        cr.rotate((-pi / 2) + radians(wind.degrees))
+        cr.move_to(r, 0)
+        cr.line_to(-r + scaled_h, 0)
+        cr.stroke()
+
+        # Arrowhead
+        cr.move_to(r - scaled_h, 0)
+        cr.line_to(r,  scaled_w)
+        cr.line_to(r, -scaled_w)
+        cr.close_path()
+        cr.fill()
+
+        cr.move_to(-r, 0)
+        cr.line_to(-r + scaled_h,  scaled_w)
+        cr.line_to(-r + scaled_h, -scaled_w)
+        cr.close_path()
+        cr.fill()
+
+        cr.stroke()
+        cr.restore()
+
     cr.save()
     cr.set_source_rgba(0, 0, 0, RW_CONFIG["compass_outline_alpha"])
     cr.set_line_width(RW_CONFIG["compass_majortick_line_width"])
     cr.translate(0.5, 0.5)
-    r = RW_CONFIG["compass_radius"]
     cr.arc(0, 0, r, 0, 2 * pi)
     cr.close_path()
     cr.stroke()
@@ -123,6 +156,17 @@ def _render_wind_compass(cr: cairo.Context, wind: Wind):
         
         x, y, text_width, text_height, dx, dy = cr.text_extents(s)
         # Weird axes due to rotation
+
+        # Draw white outline - currently disabled
+        # TODO come up with a better way to distinguish numbers when it overlaps with arrow
+        # cr.save()
+        # cr.set_source_rgba(0.957, 0.957, 0.957, 1)
+        # cr.move_to(r - RW_CONFIG["compass_majortick_offsets"][1] - text_height - 0.01, -(text_width / 2) - 0.002)
+        # cr.rotate(pi / 2)
+        # cr.text_path(s)
+        # cr.stroke()
+        # cr.restore()
+
         cr.move_to(r - RW_CONFIG["compass_majortick_offsets"][1] - text_height - 0.01, -(text_width / 2) - 0.002)
         cr.save()
         cr.rotate(pi / 2)
@@ -146,39 +190,6 @@ def _render_wind_compass(cr: cairo.Context, wind: Wind):
         cr.stroke()
         cr.rotate(2 * pi / N_MINOR_SEGMENTS)
     cr.restore()
-
-    # Draw wind pointer
-    if wind.degrees is not None:
-        w, h = RW_CONFIG["wind_arrow_width"], RW_CONFIG["wind_arrow_height"]
-        ws = min(coalesce(wind.gust, wind.speed), 45)
-        scaled_w, scaled_h = sqrt(5 * ws) * w, ws * h
-
-        cr.save()
-        cr.set_line_width(0.01)
-        cr.set_source_rgba(0, 0, 0, 1)
-
-        # Wind line
-        cr.translate(0.5, 0.5)
-        cr.rotate((-pi / 2) + radians(wind.degrees))
-        cr.move_to(r, 0)
-        cr.line_to(-r + scaled_h, 0)
-        cr.stroke()
-
-        # Arrowhead
-        cr.move_to(r - scaled_h, 0)
-        cr.line_to(r,  scaled_w)
-        cr.line_to(r, -scaled_w)
-        cr.close_path()
-        cr.fill()
-
-        cr.move_to(-r, 0)
-        cr.line_to(-r + scaled_h,  scaled_w)
-        cr.line_to(-r + scaled_h, -scaled_w)
-        cr.close_path()
-        cr.fill()
-
-        cr.stroke()
-        cr.restore()
 
 def _render_wind_gauge(cr: cairo.Context, wind: Wind):
     cr.save()
@@ -225,14 +236,15 @@ def _cleanup_canvas(surface, output):
 
     return output
 
-def render_metar_wind(metar: Metar, airport: Airport):
+def render_metar_wind(airport: Airport):
     w, h = RW_CONFIG["size"]
     output, surface, cr = _setup_canvas(w, h)
 
+    metar = airport.fetch_current_metar()
     _render_wind_gauge(cr, metar.wind)
     _render_wind_compass(cr, metar.wind)
 
-    rwis = airport.compute_rw_wind(metar, unique_rws_only=True)
+    rwis = airport.compute_rw_wind(metar)
     for i, rwi in enumerate(rwis):
         # Highlight favored runway
         _render_runway(cr, rwi, background_mode=i > 0)
@@ -241,10 +253,12 @@ def render_metar_wind(metar: Metar, airport: Airport):
 
     return output
 
-def render_metar_additional_info():
+def render_metar_additional_info(airport: Airport):
     w, h = 360, 120
     # TODO make component for VFR/IFR status, XW info, & altimeter setting, temp, dewpoint, etc - like metar taf display mode
     output, surface, cr = _setup_canvas(w, h, background_rgba=(1, 0, 0, 1))
+
+    fr_category = airport.fetch_flight_category()
 
     _cleanup_canvas(surface, output)
 
