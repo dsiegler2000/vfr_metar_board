@@ -6,7 +6,6 @@ from flask_sock import Sock
 from werkzeug.wsgi import FileWrapper
 
 import airport_info as airports
-import aviation_weather as weather
 from render import render_metar_wind, render_metar_additional_info
 
 app = Flask(__name__)
@@ -36,8 +35,9 @@ for a in TEST_ICAOS:
 
 @app.route("/testing/<icao>")
 def testing_icao(icao):
-    metar = weather.fetch_latest_metar(icao)
-    taf = weather.fetch_latest_taf(icao)
+    airport = airports.get_airport_info(icao)
+    metar = airport.metar
+    taf = airport.taf
     return render_template("index.html", 
                            debug_info="DEBUG" if app.debug else "PROD",
                            metar=metar,
@@ -65,7 +65,6 @@ def dynamicassets_metar_wind(icao):
 
 @app.route("/dynamicassets/metar_additional_info/<icao>.svg")
 def dynamicassets_metar_additional_info(icao):
-    # TODO this is inefficient - cache by minute!
     airport = airports.get_airport_info(icao)
     additional_info_buffer = render_metar_additional_info(airport)
     return send_file(

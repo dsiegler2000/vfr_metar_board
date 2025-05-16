@@ -14,6 +14,7 @@ import time
 
 from utils import coalesce_int_from_float, coalesce_float, coalesce
 from metar_taf_parser.model.model import Wind, Metar
+from metar_taf_parser.model.enum import CloudQuantity
 from aviation_weather import fetch_latest_metar
 
 @dataclass
@@ -130,25 +131,30 @@ class RunwayWindInfo:
 class Airport:
     """
     Airport info & helper functions constructed from raw data. 
-    Includes METAR info included with the airport and caching logic. 
+    Includes METAR info & additional info (cloud ceiling, flight category, etc). 
     """
-    ident: str
-    icao_code: str
-    iata_code: str
-    local_code: str
-    lat: float
-    long: float
-    elevation_ft: int
-    iso_country: str
-    runways: list
-    frequencies: list
+    def __init__(self, ident: str, icao_code: str, iata_code: str, local_code: str, 
+                       lat: float, long: float, elevation_ft: int, 
+                       iso_country: str, runways: list, frequencies: list):
+        # Airport info
+        self.ident = ident
+        self.icao_code = icao_code
+        self.iata_code = iata_code
+        self.local_code = local_code
+        self.lat = lat
+        self.long = long
+        self.elevation_ft = elevation_ft
+        self.iso_country = iso_country
+        self.runways = runways
+        self.frequencies = frequencies
 
-    # Cached METAR info
-    _metar: Metar
-    _runway_wind_info: RunwayWindInfo
-    _last_metar_fetch_time: float
+        # Cached unique runways
+        self._unique_runways = None    
 
-    _unique_runways = None
+        # Cached METAR info
+        self._last_metar_fetch_time = None
+        self._fetch_current_metar()
+
     def get_unique_runways(self):
         """Returns unique runways, excluding L/R/C duplicates"""
         if self._unique_runways is None:
@@ -161,12 +167,17 @@ class Airport:
         return self._unique_runways
     unique_runways = property(get_unique_runways)
 
-    def _compute_rw_wind(self, metar):
+    def _compute_cloud_ceiling(self, metar: Metar):
+        ceiling = coalesce(metar.vertical_visibility, 10_000)
+        for c in metar.clouds:
+            if c.quantity in (CloudQuantity.BKN, CloudQuantity.OVC) and c.height <= ceiling:
+                ceiling = c.height
+        return ceiling
+
+    def _compute_rw_wind(self, metar: Metar):
         """
         Returns tuple of (runway, headwind, crosswind), sorted by headwind, crosswind, only for unique runways. 
         """
-        # TODO cache this
-        # metar = self.fetch_current_metar()
         rws_wind_info = []
         rws = self.unique_runways
         rws_wind_info = sorted([RunwayWindInfo(rw, metar.wind) for rw in rws], key=lambda rwi: rwi.max_headwind, reverse=True)
@@ -174,26 +185,53 @@ class Airport:
         rws_wind_info[0].is_preferred_rw_info = ("le" if dir == "calm" else dir)
         return rws_wind_info
     
-    # TODO convert these to properties
+    def _compute_flight_category(self, metar: Metar, ceiling: int):
+        if ceiling <= 500 or metar.visibility:
+            pass
+        # print(metar.visibility)
+        return ""
+    
+    def _get_cloud_ceiling(self):
+        self._fetch_current_metar()
+        return self._cloud_ceiling
+
+    def _get_flight_category(self):
+        self._fetch_current_metar()
+        return self._flight_category
+
+    def _get_runway_wind_info(self):
+        self._fetch_current_metar()
+        return self._runway_wind_info
+    
     def _fetch_current_metar(self, check_cache=True, cache_expiration_timeout=60):
-        """Fetch current METAR and cache with an expiration time in seconds"""
+        """Fetch current METAR and cache relevant data with an expiration time in seconds"""
         t = time.time()
         if (not check_cache) or (self._last_metar_fetch_time is None) or (self._metar is None) or (t - self._last_metar_fetch_time > cache_expiration_timeout):
-            self._metar = fetch_latest_metar(coalesce(self.icao_code, self.ident))
-            self._runway_wind_info = self._compute_rw_wind(self._metar)
             self._last_metar_fetch_time = t
+            self._metar = fetch_latest_metar(coalesce(self.icao_code, self.ident))
+            if self._metar:
+                self._cloud_ceiling = self._compute_cloud_ceiling(self._metar)
+                self._runway_wind_info = self._compute_rw_wind(self._metar)
+                self._flight_category = self._compute_flight_category(self._metar, self._cloud_ceiling)
+            else:
+                self._cloud_ceiling = None
+                self._runway_wind_info = None
+                self._flight_category = None
         return self._metar
-    
-    def _fetch_flight_category(self, check_cache=True, cache_expiration_timeout=60):
-        metar = fetch_latest_metar(check_cache=check_cache, cache_expiration_timeout=cache_expiration_timeout)
-        return "TODO"
-    
-    # TODO do everything in _fetch_current_metar, then have seperate getters etc
     metar = property(_fetch_current_metar)
-    flight_category = property(_fetch_flight_category)
-    runway_info = property()
+    cloud_ceiling = property(_get_cloud_ceiling)
+    flight_category = property(_get_flight_category)
+    runway_wind_info = property(_get_runway_wind_info)
     
-def prefetch_azos_airport_info(check_cache=True):
+    def _fetch_current_taf(self, check_cache=True, cache_expiration_timeout=60):
+        """Fetch current TAF and cache relevant data with an expiration time in seconds"""
+        t = time.time()
+        if (not check_cache) or (self._last_metar_fetch_time is None) or (self._metar is None) or (t - self._last_metar_fetch_time > cache_expiration_timeout):
+            self._taf = "TAF TODO"
+        return self._taf
+    taf = property(_fetch_current_taf)
+    
+def _prefetch_azos_airport_info(check_cache=True):
     """Fetches & caches airport info AZOS geojson & returns all airport FAA LIDs / ICAO codes"""
     # Cache check
     fp = config["azos_airport_info_fp"]
@@ -219,12 +257,12 @@ def prefetch_azos_airport_info(check_cache=True):
 with open(os.path.join(config["keys_fp"], config["airportdb_token_fn"]), "r") as f:
     AIRPORTDB_KEY = f.read()
 
-prefetch_azos_airport_info()
+_prefetch_azos_airport_info()
 
 # Cache for airport info
-AIRPORTS = dict()
+_AIRPORTS = dict()
 
-def fetch_airportdb_airport_info(icao_code, check_cache=True):
+def _fetch_airportdb_airport_info(icao_code, check_cache=True):
     json_dir = config["airportdb_airport_info_fp"]
     json_fp = f"{json_dir}/{icao_code}.json"
     if (not check_cache) or (not os.path.isfile(json_fp)):
@@ -266,13 +304,11 @@ def fetch_airportdb_airport_info(icao_code, check_cache=True):
                 type=f["type"],
                 description=f["description"],
                 frequency_mhz=f["frequency_mhz"]
-            ) for f in info["freqs"]],
-            _metar=None,
-            _last_metar_fetch_time=None
+            ) for f in info["freqs"]]
         )
 
-def fetch_azos_airport_info(icao_like_code):
-    ident = autocorrect_icao(icao_like_code)
+def _fetch_azos_airport_info(icao_like_code):
+    ident = icao_to_local(icao_like_code)
     fp = f"{config['azos_airport_info_fp']}/{ident}.json"
     if not os.path.isfile(fp):
         return None
@@ -288,36 +324,42 @@ def fetch_azos_airport_info(icao_like_code):
         iso_country=info["properties"]
     )
 
-def set_airport_info(icao_like_code, info):
+def _set_airport_info(icao_like_code, info):
     """Set cache to airport info, return true if successful and info not null"""
     if info is not None:
-        AIRPORTS[icao_like_code] = info
+        _AIRPORTS[icao_like_code] = info
         return True
     return False
 
 def get_airport_info(icao_like_code, check_cache=True):
     """Get airport info from ICAO code (will auto correct ICAO) using existing cache"""
     icao_like_code = icao_like_code.upper()
-    if icao_like_code in AIRPORTS.keys() and (not check_cache):
-        return AIRPORTS[icao_like_code]
+    if (not check_cache) or icao_like_code in _AIRPORTS.keys():
+        return _AIRPORTS[icao_like_code]
     
     # Try airportdb
-    info = fetch_airportdb_airport_info(icao_like_code, check_cache=check_cache)
-    if set_airport_info(icao_like_code, info):
+    info = _fetch_airportdb_airport_info(icao_like_code, check_cache=check_cache)
+    if _set_airport_info(icao_like_code, info):
         return info
 
     # Try airportdb with K appended
-    info = fetch_airportdb_airport_info(f"K{icao_like_code}", check_cache=check_cache)
-    if set_airport_info(icao_like_code, info):
-        return info
+    icao = try_append_k(icao_like_code)
+    if icao:
+        info = _fetch_airportdb_airport_info(f"K{icao_like_code}", check_cache=check_cache)
+        if _set_airport_info(icao_like_code, info):
+            return info
 
-    # Fallback to azos
-    info = fetch_azos_airport_info(icao_like_code)
-    if set_airport_info(icao_like_code, info):
+    # Fallback to azos - will auto convert to local if needed
+    info = _fetch_azos_airport_info(icao_like_code)
+    if _set_airport_info(icao_like_code, info):
         return info
     return None
 
-def autocorrect_icao(airport_id):
-    airport_id = airport_id.lower()
-    if airport_id.startswith("k") and len(airport_id) == 4:
-        return airport_id[1:]
+def icao_to_local(icao):
+    icao = icao.lower()
+    if icao.startswith("k") and len(icao) == 4:
+        return icao[1:]
+    
+def try_append_k(icao_like_code):
+    icao_like_code = icao_like_code.lower()
+    return f"K{icao_like_code}" if (not icao_like_code.startswith("k")) and len(icao_like_code) == 3 else None

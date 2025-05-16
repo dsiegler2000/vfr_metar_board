@@ -240,11 +240,11 @@ def render_metar_wind(airport: Airport):
     w, h = RW_CONFIG["size"]
     output, surface, cr = _setup_canvas(w, h)
 
-    metar = airport.fetch_current_metar()
+    metar = airport.metar
     _render_wind_gauge(cr, metar.wind)
     _render_wind_compass(cr, metar.wind)
 
-    rwis = airport.compute_rw_wind(metar)
+    rwis = airport.runway_wind_info
     for i, rwi in enumerate(rwis):
         # Highlight favored runway
         _render_runway(cr, rwi, background_mode=i > 0)
@@ -258,7 +258,7 @@ def render_metar_additional_info(airport: Airport):
     # TODO make component for VFR/IFR status, XW info, & altimeter setting, temp, dewpoint, etc - like metar taf display mode
     output, surface, cr = _setup_canvas(w, h, background_rgba=(1, 0, 0, 1))
 
-    fr_category = airport.fetch_flight_category()
+    fr_category = airport.flight_category
 
     _cleanup_canvas(surface, output)
 
