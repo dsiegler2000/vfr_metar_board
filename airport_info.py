@@ -145,7 +145,8 @@ class Airport:
         self.long = long
         self.elevation_ft = elevation_ft
         self.iso_country = iso_country
-        self.runways = runways
+        # Filter out helipads, sometimes listed as "H1"
+        self.runways = [r for r in runways if not (r.le_ident.lower().startswith("H") or r.he_ident.lower().startswith("H") or r.length_ft <= 200)]
         self.frequencies = frequencies
 
         # Cached unique runways
@@ -153,6 +154,10 @@ class Airport:
 
         # Cached METAR info
         self._last_metar_fetch_time = None
+        self._metar = None
+        self._cloud_ceiling = None
+        self._runway_wind_info = None
+        self._flight_category = "UNK"
         self._fetch_current_metar()
 
     def get_unique_runways(self):
@@ -186,10 +191,28 @@ class Airport:
         return rws_wind_info
     
     def _compute_flight_category(self, metar: Metar, ceiling: int):
-        if ceiling <= 500 or metar.visibility:
-            pass
-        # print(metar.visibility)
-        return ""
+        if metar is None:
+            return "UNK"
+        vx = self._parse_visibility(metar.visibility.distance)
+        if ceiling <= 500 or vx <= 1:
+            return "LIFR"
+        elif ceiling <= 1000 or vx <= 3:
+            return "IFR"
+        elif ceiling <= 3000 or vx <= 5:
+            return "MVFR"
+        else:
+            return "VFR"
+    
+    def _parse_visibility(self, s: str):
+        if s.endswith("SM"):
+            s = s[:-2].split(" ")
+            if len(s) == 1:
+                return float(s[0])
+            else:
+                f = s[1].split("/")
+                return float(s[0]) + float(f[0]) / float(f[1])
+        else:
+            return 0
     
     def _get_cloud_ceiling(self):
         self._fetch_current_metar()
@@ -208,20 +231,18 @@ class Airport:
         t = time.time()
         if (not check_cache) or (self._last_metar_fetch_time is None) or (self._metar is None) or (t - self._last_metar_fetch_time > cache_expiration_timeout):
             self._last_metar_fetch_time = t
-            self._metar = fetch_latest_metar(coalesce(self.icao_code, self.ident))
-            if self._metar:
+            new_metar = fetch_latest_metar(coalesce(self.icao_code, self.ident))
+            # Only update & recompute if METAR is a new time
+            if self._metar is None or new_metar.day != self._metar.day or new_metar.time != self._metar.time:
+                self._metar = new_metar
                 self._cloud_ceiling = self._compute_cloud_ceiling(self._metar)
                 self._runway_wind_info = self._compute_rw_wind(self._metar)
                 self._flight_category = self._compute_flight_category(self._metar, self._cloud_ceiling)
-            else:
-                self._cloud_ceiling = None
-                self._runway_wind_info = None
-                self._flight_category = None
         return self._metar
     metar = property(_fetch_current_metar)
     cloud_ceiling = property(_get_cloud_ceiling)
-    flight_category = property(_get_flight_category)
     runway_wind_info = property(_get_runway_wind_info)
+    flight_category = property(_get_flight_category)    
     
     def _fetch_current_taf(self, check_cache=True, cache_expiration_timeout=60):
         """Fetch current TAF and cache relevant data with an expiration time in seconds"""

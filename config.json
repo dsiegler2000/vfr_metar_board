@@ -45,6 +45,8 @@
             "wind_gauge_radius_extension": 0.04,
             "wind_gauge_rectangle_width": 0.080,
             "wind_gauge_rectangle_height": 0.015,
+            "wind_gauge_gust_highlight_line_width": 0.004,
+            "wind_gauge_gust_highlight_color": [0, 0, 0, 0.8],
             "_comment": "[wind speed speed threshold, r, g, b, a]",
             "wind_gauge_active_color_bands": [
                 [10, 0.2, 0.8, 0.2, 1.0],

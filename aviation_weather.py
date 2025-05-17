@@ -15,7 +15,6 @@ import requests
 import urllib.parse
 import re
 from metar_taf_parser.parser.parser import MetarParser, TAFParser
-from metar_taf_parser.parser import parser
 
 # API URLs
 AVIATIONWEATHER_METAR_API_URL = "https://aviationweather.gov/api/data/metar"

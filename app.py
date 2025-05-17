@@ -1,12 +1,10 @@
 import os
-import time
 
 from flask import Flask, render_template, send_from_directory, send_file
 from flask_sock import Sock
-from werkzeug.wsgi import FileWrapper
 
 import airport_info as airports
-from render import render_metar_wind, render_metar_additional_info
+from render import render_metar_wind, render_metar_additional_info, render_metar_cloud_cover
 
 app = Flask(__name__)
 
@@ -74,8 +72,15 @@ def dynamicassets_metar_additional_info(icao):
         mimetype="image/svg+xml"
     )
 
-def dynamicassets_metar_cloudcover():
-    pass
+@app.route("/dynamicassets/metar_cloud_cover/<icao>.svg")
+def dynamicassets_metar_cloud_cover(icao):
+    cloud_cover_buffer = render_metar_cloud_cover()
+    return send_file(
+        cloud_cover_buffer,
+        as_attachment=True,
+        download_name=f"{icao}_metar_cloud_cover.svg",
+        mimetype="image/svg+xml"
+    )
 
 @app.route("/favicon.ico")
 def favicon():

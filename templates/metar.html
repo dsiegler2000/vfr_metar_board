@@ -3,7 +3,13 @@
 {% block title %} VFR {% endblock %}
 {% block content %}
     <p>{{ icao }}</p>
-    <img src="{{ url_for('dynamicassets_metar_wind', icao=icao) }}"/>
-    <br>
-    <img src="{{ url_for('dynamicassets_metar_additional_info', icao=icao) }}"/>
+    <div class="row">
+        <div class="column">
+            <img class="svg" src="{{ url_for('dynamicassets_metar_wind', icao=icao) }}"/>
+            <img class="svg" src="{{ url_for('dynamicassets_metar_additional_info', icao=icao) }}"/>
+        </div>
+        <div class="column">
+            <img src="{{ url_for('dynamicassets_metar_cloud_cover', icao=icao) }}"/>
+        </div>
+    </div>
 {% endblock %}

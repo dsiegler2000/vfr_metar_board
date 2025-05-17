@@ -14,3 +14,19 @@ body {
     max-height: 800px;
     max-width: 1200px; 
 }
+
+.row {
+  display: flex;
+}
+
+.column {
+  flex: 0;
+  padding: 0;
+  margin: 0;
+}
+
+.svg {
+    padding: 0;
+    margin: 0;
+    display: block;
+}
