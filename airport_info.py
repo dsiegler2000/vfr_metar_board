@@ -17,6 +17,14 @@ from metar_taf_parser.model.model import Wind, Metar
 from metar_taf_parser.model.enum import CloudQuantity
 from aviation_weather import fetch_latest_metar
 
+# Formatted as ceiling, (OR) viz, rules
+FLIGHT_RULES_REQUIREMENTS = [
+    (500, 1, "LIFR"),
+    (1000, 3, "IFR"),
+    (3000, 5, "MVFR"),
+    (100_000, 100, "VFR"),
+]
+
 @dataclass
 class Runway:
     length_ft: int
@@ -158,6 +166,8 @@ class Airport:
         self._cloud_ceiling = None
         self._runway_wind_info = None
         self._flight_category = "UNK"
+        self._vx_flight_category = "UNK"
+        self._ceiling_flight_category = "UNK"
         self._fetch_current_metar()
 
     def get_unique_runways(self):
@@ -194,14 +204,17 @@ class Airport:
         if metar is None:
             return "UNK"
         vx = self._parse_visibility(metar.visibility.distance)
-        if ceiling <= 500 or vx <= 1:
-            return "LIFR"
-        elif ceiling <= 1000 or vx <= 3:
-            return "IFR"
-        elif ceiling <= 3000 or vx <= 5:
-            return "MVFR"
-        else:
-            return "VFR"
+        overall_flight_category = "UNK"
+        vx_flight_category = "UNK"
+        ceiling_flight_category = "UNK"
+        for ceiling_thresh, vx_thresh, rule in FLIGHT_RULES_REQUIREMENTS:
+            if overall_flight_category == "UNK" and (ceiling <= ceiling_thresh or vx <= vx_thresh):
+                overall_flight_category = rule
+            if ceiling_flight_category == "UNK" and (ceiling <= ceiling_thresh):
+                ceiling_flight_category = rule
+            if vx_flight_category == "UNK" and (vx <= vx_thresh):
+                vx_flight_category = rule
+        return overall_flight_category, vx_flight_category, ceiling_flight_category
     
     def _parse_visibility(self, s: str):
         if s.endswith("SM"):
@@ -221,6 +234,14 @@ class Airport:
     def _get_flight_category(self):
         self._fetch_current_metar()
         return self._flight_category
+    
+    def _get_vx_flight_category(self):
+        self._fetch_current_metar()
+        return self._vx_flight_category
+    
+    def _get_ceiling_flight_category(self):
+        self._fetch_current_metar()
+        return self._ceiling_flight_category
 
     def _get_runway_wind_info(self):
         self._fetch_current_metar()
@@ -235,14 +256,17 @@ class Airport:
             # Only update & recompute if METAR is a new time
             if self._metar is None or new_metar.day != self._metar.day or new_metar.time != self._metar.time:
                 self._metar = new_metar
-                self._cloud_ceiling = self._compute_cloud_ceiling(self._metar)
-                self._runway_wind_info = self._compute_rw_wind(self._metar)
-                self._flight_category = self._compute_flight_category(self._metar, self._cloud_ceiling)
+                if self._metar is not None:
+                    self._cloud_ceiling = self._compute_cloud_ceiling(self._metar)
+                    self._runway_wind_info = self._compute_rw_wind(self._metar)
+                    self._flight_category, self._vx_flight_category, self._ceiling_flight_category = self._compute_flight_category(self._metar, self._cloud_ceiling)
         return self._metar
-    metar = property(_fetch_current_metar)
-    cloud_ceiling = property(_get_cloud_ceiling)
-    runway_wind_info = property(_get_runway_wind_info)
-    flight_category = property(_get_flight_category)    
+    metar: Metar = property(_fetch_current_metar)
+    cloud_ceiling: int = property(_get_cloud_ceiling)
+    runway_wind_info: RunwayWindInfo = property(_get_runway_wind_info)
+    flight_category: str = property(_get_flight_category)
+    visibility_flight_category: str = property(_get_vx_flight_category)
+    ceiling_flight_category: str = property(_get_ceiling_flight_category)
     
     def _fetch_current_taf(self, check_cache=True, cache_expiration_timeout=60):
         """Fetch current TAF and cache relevant data with an expiration time in seconds"""

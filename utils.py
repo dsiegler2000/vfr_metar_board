@@ -20,3 +20,6 @@ def coalesce(*args):
     for o in args:
         if o is not None:
             return o
+        
+def mb_to_inHg(mb):
+    return mb / 33.864
