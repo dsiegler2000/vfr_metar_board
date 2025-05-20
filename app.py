@@ -28,8 +28,9 @@ TEST_ICAOS = [
     "sck",
     "sql"
 ]
-for a in TEST_ICAOS:
-    print(f"http://127.0.0.1:5000/metar/{a}")
+# for a in TEST_ICAOS:
+#     print(f"http://127.0.0.1:5000/metar/{a}")
+print("http://127.0.0.1:5000/chart_testing")
 
 @app.route("/socket_testing/<icao>")
 def testing_icao(icao):
@@ -44,6 +45,12 @@ def testing_icao(icao):
 @app.route("/chart_testing")
 def charts_testing():
     return render_template("chart_testing.html")
+
+# TODO this can be a way to get relevant info to the client
+#  it is likely more "javascript-onic" to transmit this as a json
+@app.route("/chart_testing/csv_test")
+def csv_test():
+    return "hi!"
 
 @app.route("/metar/<icao>")
 def image_testing(icao):

@@ -20,6 +20,7 @@ N_MINOR_SEGMENTS = 72
 # Wind gauge color maps for active (wind is at least this strong) & inactive states
 WIND_GAUGE_ACTIVE_COLOR_MAP = dict()
 WIND_GAUGE_INACTIVE_COLOR_MAP = dict()
+CROSSWIND_COLOR_MAP = dict()
 for wsi in range(1, (N_MINOR_SEGMENTS // 2) + 1):
     for c in RW_CONFIG["wind_gauge_active_color_bands"][::-1]:
         if wsi <= c[0]:
@@ -28,6 +29,10 @@ for wsi in range(1, (N_MINOR_SEGMENTS // 2) + 1):
     for c in RW_CONFIG["wind_gauge_inactive_color_bands"][::-1]:
         if wsi <= c[0]:
             WIND_GAUGE_INACTIVE_COLOR_MAP[wsi] = c[1:]
+for wsi in range(1, 100):
+    for c in ADDITIONAL_INFO_CONFIG["crosswind_color_bands"][::-1]:
+        if wsi <= c[0]:
+            CROSSWIND_COLOR_MAP[wsi] = c[1:]
 
 def _centered_rectangle(cr: cairo.Context, x_center, y_center, width, height):
     cr.rectangle(x_center - width / 2, y_center - height / 2, width, height)
@@ -349,10 +354,12 @@ def _render_mini_runway_wind(cr: cairo.Context, rwi: RunwayWindInfo):
 
     # Crosswind text
     s = _format_wind_str(rwi.min_crosswind, rwi.max_crosswind)
+    cr.set_source_rgba(*CROSSWIND_COLOR_MAP[int(round(rwi.max_crosswind, 0))])
     x, y, text_width, text_height, dx, dy = cr.text_extents(s)
     cr.move_to(-xws * ((base_width / 2) + text_horizontal_offset) - (text_width if xws == 1 else 0), -text_height)
     cr.text_path(s)
     cr.fill()
+    cr.set_source_rgba(0, 0, 0, 1)
 
     # Overall wind text
     s = f"{rwi.wind.degrees}@{_format_wind_str(rwi.wind.speed, coalesce(rwi.wind.gust, rwi.wind.speed))}"

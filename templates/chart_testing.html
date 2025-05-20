@@ -5,7 +5,31 @@
 <div id="container" style="width:100%; height:400px;"></div>
 
 <script src="{{ url_for('static', filename='node_modules/highcharts/highcharts.js')}}"></script>
-<script>
+<script type="text/javascript">
+    console.log("Starting JS script!")
+    fetch("/chart_testing/csv_test")
+    .then(response => response.text())
+    .then(data => console.log('Data received:', data))
+    .catch(error => {
+        console.error('There was a problem with the fetch operation:', error);
+    });
+
+    addEventListener("keypress", (event) => { 
+        console.log(event['key']);
+        if (event['key'] == 'a') {
+            Highcharts.charts[0].series[0].points[0].onMouseOver();
+        }
+        else if (event['key'] == 'b') {
+            Highcharts.charts[0].series[1].points[0].onMouseOver();
+        }
+        else if (event['key'] == 'c') {
+            Highcharts.charts[0].series[1].points[1].onMouseOver();
+        }
+        else if (event['key'] == 'd') {
+            Highcharts.charts[0].tooltip.hide()
+        }
+    })
+
     document.addEventListener('DOMContentLoaded', function () {
     const chart = Highcharts.chart('container', {
         chart: {
