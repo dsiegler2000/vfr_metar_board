@@ -7,3 +7,4 @@ debug/
 .lgd-nfy0*
 __pycache__/
 .vscode/
+static/node_modules

@@ -1,7 +1,7 @@
 /* Bootstrap overrides */
 #wrapper {
-    height: 800px;
-    width: 1200px;
+    height: fit-content;
+    width: fit-content;
     background-color: whitesmoke;
 }
 
@@ -11,8 +11,8 @@
 
 body {
     background-color: darkblue;
-    max-height: 800px;
-    max-width: 1200px; 
+    /* max-height: 800px; */
+    /* max-width: 1200px;  */
 }
 
 .row {

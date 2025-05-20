@@ -31,20 +31,24 @@ TEST_ICAOS = [
 for a in TEST_ICAOS:
     print(f"http://127.0.0.1:5000/metar/{a}")
 
-@app.route("/testing/<icao>")
+@app.route("/socket_testing/<icao>")
 def testing_icao(icao):
     airport = airports.get_airport_info(icao)
     metar = airport.metar
     taf = airport.taf
-    return render_template("index.html", 
+    return render_template("socket_testing.html", 
                            debug_info="DEBUG" if app.debug else "PROD",
                            metar=metar,
                            taf=taf)
 
+@app.route("/chart_testing")
+def charts_testing():
+    return render_template("chart_testing.html")
+
 @app.route("/metar/<icao>")
 def image_testing(icao):
-    # TODO add a text box at the top for the metar text, in courier
-    # TODO update cache here
+    # TODO add a text box at the top for the metar text & recency, in courier
+    # TODO update rendering cache here
     return render_template("metar.html", 
                            icao=icao)
 
