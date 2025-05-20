@@ -12,18 +12,18 @@ Check aviationweather & foreflight
 """
 
 import requests
+import httpx
 import urllib.parse
 import re
+import time
+import pandas as pd
+from io import StringIO
+from datetime import datetime
 from metar_taf_parser.parser.parser import MetarParser, TAFParser
 
 # API URLs
 AVIATIONWEATHER_METAR_API_URL = "https://aviationweather.gov/api/data/metar"
 AVIATIONWEATHER_TAF_API_URL = "https://aviationweather.gov/api/data/taf"
-
-# TODO create extended version of metar that includes vfr, ifr, lifr, etc
-#  or maybe just have this as functional extensions of the existing class...
-class Metar():
-    pass
 
 def aviationweather_api_request(url: str, **params):
     full_url = f"{url}?{urllib.parse.urlencode(params)}"
@@ -74,4 +74,40 @@ def fetch_historical_metar(icao_like_id: str, retry_no_kilo: bool=True, check_ca
     # can mostly copy previous code
     # note the code should be local & UPPER CASE 
     # SCK NOT sck or ksck or KSCK
+    icao_like_id = icao_like_id.lower()
+
+    # TODO implement retry no kilo
+    # TODO implement cache - likely move the logic into a helper
+    # TODO implement this on a yearly basis, so then the computation isn't as much
+
+    dt1 = datetime.strptime("2024-01-01", "%Y-%m-%d")
+    dt2 = datetime.strptime("2024-12-31", "%Y-%m-%d")
+    uri = (
+        "http://mesonet.agron.iastate.edu/cgi-bin/request/asos.py?"
+        f"station={icao_like_id.upper()}"
+        f"&year1={dt1.year}&month1={dt1.month}&day1={dt1.day}"
+        f"&year2={dt2.year}&month2={dt2.month}&day2={dt2.day}"
+        "&data=all&direct=yes&latlon=no&elev=no&missing=M&trace=T&Etc%2FUTC&format=onlycomma&report_type=1&report_type=3&report_type=4"
+    )
+    print("start waiting...")
+    st = time.time()
+    response = httpx.get(uri, timeout=60 * 5)
+    text = response.text
+    df = pd.read_csv(StringIO(text))
+    print("time to fetch:")
+    print(time.time() - st)
+    print(f"fetched: {df.shape[0]} rows")
+    st = time.time()
+    print("parsing")
+    df["metar"].apply(lambda metar: MetarParser().parse(metar))
+    print(time.time() - st)
+    # print(df.head())
+    # TODO from this, compute & store the monthly...
+    #  p10, p25, p50, p75, p90, average days
+
+
+def fetch_parse_historical_weather(icao_like_id: str, retry_no_kilo: bool=True, check_cache: bool=True):
+    """
+
+    """
     pass
