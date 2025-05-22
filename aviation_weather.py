@@ -79,6 +79,7 @@ def fetch_historical_metar(icao_like_id: str, retry_no_kilo: bool=True, check_ca
     # TODO implement retry no kilo
     # TODO implement cache - likely move the logic into a helper
     # TODO implement this on a yearly basis, so then the computation isn't as much
+    # TODO really we want to start this fetching & computation while the metar is loading
 
     dt1 = datetime.strptime("2024-01-01", "%Y-%m-%d")
     dt2 = datetime.strptime("2024-12-31", "%Y-%m-%d")
@@ -91,19 +92,34 @@ def fetch_historical_metar(icao_like_id: str, retry_no_kilo: bool=True, check_ca
     )
     print("start waiting...")
     st = time.time()
-    response = httpx.get(uri, timeout=60 * 5)
-    text = response.text
-    df = pd.read_csv(StringIO(text))
+    # response = httpx.get(uri, timeout=60 * 5)
+    # text = response.text
+    # df = pd.read_csv(StringIO(text))
+    # df.to_csv("data/testing.csv")
     print("time to fetch:")
+    df = pd.read_csv("data/testing.csv")
     print(time.time() - st)
     print(f"fetched: {df.shape[0]} rows")
     st = time.time()
     print("parsing")
-    df["metar"].apply(lambda metar: MetarParser().parse(metar))
-    print(time.time() - st)
-    # print(df.head())
     # TODO from this, compute & store the monthly...
     #  p10, p25, p50, p75, p90, average days
+    # I think best approach is
+    #  keep data as a dataframe for computing monthly hourly averages
+    #  then store it as a csv or json or something
+    #  then when loading it / working with it live, have a wrapper class
+    #  cause we may store additional info like % chance of gust, etc
+    
+    df["metar_obj"] = df["metar"].apply(lambda metar: MetarParser().parse(metar))
+
+    # Crosswind
+    # Cloud ceiling
+    # Flight category
+
+    # print(df.head(10))
+    print(df.columns)
+
+    print(time.time() - st)
 
 
 def fetch_parse_historical_weather(icao_like_id: str, retry_no_kilo: bool=True, check_cache: bool=True):

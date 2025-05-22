@@ -72,13 +72,13 @@ class RunwayWindInfo:
     min_crosswind: float
     max_crosswind: float
 
-    def __init__(self, runway: Runway, wind: Wind, is_preferred_rw_info: Literal["le", "he", "no", "unk"]="unk", fast_compute: bool=False):
-        # TODO add fast computation mode that doesn't consider wind variation for speeding up historical computations
-        if fast_compute:
-            raise ValueError("fast_compute is not yet supported!")
+    def __init__(self, runway: Runway, wind: Wind, is_preferred_rw_info: Literal["le", "he", "no", "unk"]="unk", crosswind_map=None):
+        if crosswind_map:
+            raise ValueError("crosswind_map is not yet supported!")
         self.runway = runway
         self.wind = wind
         self.is_preferred_rw_info = is_preferred_rw_info
+
 
         if wind.direction == "VRB":
             self.variation = True
@@ -143,7 +143,8 @@ class Airport:
     """
     def __init__(self, ident: str, icao_code: str, iata_code: str, local_code: str, 
                        lat: float, long: float, elevation_ft: int, 
-                       iso_country: str, runways: list, frequencies: list):
+                       iso_country: str, runways: list[Runway], frequencies: list,
+                       fast_compute=False):
         # Airport info
         self.ident = ident
         self.icao_code = icao_code
@@ -158,7 +159,35 @@ class Airport:
         self.frequencies = frequencies
 
         # Cached unique runways
-        self._unique_runways = None    
+        self._unique_runways = None
+
+        # Whether fast compute mode is enabled
+        # TODO finish this code out -- 
+        #  create df of weather conditions
+        #  generate monthly averages by hour to store for each year
+        #  then plot that shit (ok seperate)
+        if fast_compute:
+            self._crosswind_map = None 
+
+            rw_info_full = []
+            for rw in self.runways:
+                for i in ["le", "he"]:
+                    rw_info_full.append({
+                        "length_ft": rw.length_ft,
+                        "width_ft": rw.width_ft,
+                        "lighted": rw.lighted,
+                        "closed": rw.closed,
+                        "ident": rw.le_ident if i == "le" else rw.he_ident,
+                        "heading_true": rw[f"{i}_heading_true"],
+                        "displaced_threshold_ft": rw[f"{i}_displaced_threshold_ft"],
+                        "est_lda_ft": rw["est_lda_ft"],
+                        "surface": rw["surface"]
+                    })
+            rw_df = pd.DataFrame(rw_info_full)
+
+
+        else:
+            self._crosswind_map = None
 
         # Cached METAR info
         self._last_metar_fetch_time = None
