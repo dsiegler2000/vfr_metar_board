@@ -19,6 +19,8 @@
     },
 
     "rendering": {
+        "runway_font": "Clearview",
+        "info_font": "Arial",
         "runway": {
             "size": [360, 360],
             "rw_size": [0.09, 0.68],

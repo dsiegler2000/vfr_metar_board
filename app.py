@@ -3,7 +3,8 @@ import os
 from flask import Flask, render_template, send_from_directory, send_file
 from flask_sock import Sock
 
-import airport_info as airports
+from airport_info import get_airport_info
+from aviation_weather import fetch_historical_metar
 from render import render_metar_wind, render_metar_additional_info, render_metar_cloud_cover
 
 app = Flask(__name__)
@@ -34,7 +35,7 @@ print("http://127.0.0.1:5000/chart_testing")
 
 @app.route("/socket_testing/<icao>")
 def testing_icao(icao):
-    airport = airports.get_airport_info(icao)
+    airport = get_airport_info(icao)
     metar = airport.metar
     taf = airport.taf
     return render_template("socket_testing.html", 
@@ -48,6 +49,7 @@ def charts_testing():
 
 # TODO this can be a way to get relevant info to the client
 #  it is likely more "javascript-onic" to transmit this as a json
+fetch_historical_metar(get_airport_info("kcle"))
 @app.route("/chart_testing/csv_test")
 def csv_test():
     return "hi!"
@@ -56,15 +58,17 @@ def csv_test():
 def image_testing(icao):
     # TODO add a text box at the top for the metar text & recency, in courier
     # TODO update rendering cache here
+    # TODO render cloud coverage - depict as a simple rectangular bar with shading to indicate layers & text next to it
+    airport = get_airport_info(icao)
     return render_template("metar.html", 
-                           icao=icao)
+                           icao=icao,
+                           metar=airport.metar.message)
 
 @app.route("/dynamicassets/metar_wind/<icao>.svg")
 def dynamicassets_metar_wind(icao):
-    airport = airports.get_airport_info(icao)
+    airport = get_airport_info(icao)
     wind_buffer = render_metar_wind(airport)
 
-    # TODO render cloud coverage - depict as a simple rectangular bar with shading to indicate layers & text next to it
     return send_file(
         wind_buffer,
         as_attachment=True,
@@ -74,7 +78,7 @@ def dynamicassets_metar_wind(icao):
 
 @app.route("/dynamicassets/metar_additional_info/<icao>.svg")
 def dynamicassets_metar_additional_info(icao):
-    airport = airports.get_airport_info(icao)
+    airport = get_airport_info(icao)
     additional_info_buffer = render_metar_additional_info(airport)
     return send_file(
         additional_info_buffer,

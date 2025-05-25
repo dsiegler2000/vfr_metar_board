@@ -10,6 +10,8 @@ from metar_taf_parser.parser.parser import Metar
 from metar_taf_parser.model.model import Wind
 
 RENDERING_CONFIG = config["rendering"]
+RW_FONT = RENDERING_CONFIG["runway_font"]
+INFO_FONT = RENDERING_CONFIG["info_font"]
 RW_CONFIG = RENDERING_CONFIG["runway"]
 ADDITIONAL_INFO_CONFIG = RENDERING_CONFIG["additional_info"]
 MINI_RW_CONFIG = ADDITIONAL_INFO_CONFIG["mini_runway"]
@@ -36,9 +38,6 @@ for wsi in range(1, 100):
 
 def _centered_rectangle(cr: cairo.Context, x_center, y_center, width, height):
     cr.rectangle(x_center - width / 2, y_center - height / 2, width, height)
-
-def _set_clearview_font(cr: cairo.Context):
-    cr.select_font_face("Clearview", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
 
 def _render_runway(cr: cairo.Context, rwi: RunwayWindInfo, background_mode: bool=False):
     cr.save()
@@ -72,7 +71,7 @@ def _render_runway(cr: cairo.Context, rwi: RunwayWindInfo, background_mode: bool
 
     # Runway numbers
     cr.set_source_rgba(1, 1, 1, alpha)
-    _set_clearview_font(cr)
+    cr.select_font_face(RW_FONT, cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
     cr.set_font_size(RW_CONFIG["numbers_font_size"])
     numbers_vertical_offset = RW_CONFIG["numbers_vertical_offset"]
 
@@ -143,7 +142,7 @@ def _render_wind_compass(cr: cairo.Context, wind: Wind):
     cr.save()
     cr.set_source_rgba(0, 0, 0, 1)
     cr.set_line_width(RW_CONFIG["compass_majortick_line_width"])
-    _set_clearview_font(cr)
+    cr.select_font_face(RW_FONT, cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
     cr.set_font_size(RW_CONFIG["compass_font_size"])
     
     # Rotate everything so north is facing up - note this virtually flips x & y axes
@@ -283,7 +282,7 @@ def _render_mini_runway_wind(cr: cairo.Context, rwi: RunwayWindInfo):
         cr.close_path()
         cr.fill()
 
-    _set_clearview_font(cr)
+    cr.select_font_face(RW_FONT, cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
     cr.set_font_size(MINI_RW_CONFIG["numbers_font_size"])
 
     xws = rwi.runway.le_ident if rwi.favorable_dir == "le" else rwi.runway.he_ident
@@ -342,7 +341,7 @@ def _render_mini_runway_wind(cr: cairo.Context, rwi: RunwayWindInfo):
     s = _format_wind_str(rwi.min_headwind, rwi.max_headwind)
     
     cr.set_source_rgba(0, 0, 0, 1)
-    _set_clearview_font(cr)
+    cr.select_font_face(RW_FONT, cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
     cr.set_font_size(MINI_RW_CONFIG["wind_text_font_size"])
     cr.set_line_width(0.0)
     cr.scale(1, aspect_ratio)
@@ -362,8 +361,8 @@ def _render_mini_runway_wind(cr: cairo.Context, rwi: RunwayWindInfo):
     cr.set_source_rgba(0, 0, 0, 1)
 
     # Overall wind text
-    s = f"{rwi.wind.degrees}@{_format_wind_str(rwi.wind.speed, coalesce(rwi.wind.gust, rwi.wind.speed))}"
-    cr.select_font_face("Clearview", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
+    s = f"{coalesce(rwi.wind.degrees, 'VRB')}@{_format_wind_str(rwi.wind.speed, coalesce(rwi.wind.gust, rwi.wind.speed))}"
+    cr.select_font_face(INFO_FONT, cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
     x, y, text_width, text_height, dx, dy = cr.text_extents(s)
     cr.move_to(-(text_width / 2), (text_height / 2) + 0.01)
     cr.text_path(s)
@@ -506,7 +505,7 @@ def render_metar_additional_info(airport: Airport):
     # Flight category text
     s = airport.flight_category
     cr.set_source_rgba(1, 1, 1, 1)
-    cr.select_font_face("Clearview", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
+    cr.select_font_face(INFO_FONT, cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
     cr.set_font_size(0.05)
     text_horizontal_margin = ADDITIONAL_INFO_CONFIG["text_horizontal_margin"]
     text_vertical_margin = ADDITIONAL_INFO_CONFIG["text_vertical_margin"]
@@ -519,7 +518,7 @@ def render_metar_additional_info(airport: Airport):
     s = airport.metar.visibility.distance
     cr.set_font_size(0.04)
     cr.set_source_rgba(0, 0, 0, 1)
-    cr.select_font_face("Clearview", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
+    cr.select_font_face(INFO_FONT, cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
     _x, _y, text_width, text_height, dx, dy = cr.text_extents(s)
     cr.move_to(text_horizontal_margin, ((vxb_y + (vxb_h / 2)) / aspect_ratio) + (text_height / 2))
     cr.text_path(s)
@@ -528,17 +527,17 @@ def render_metar_additional_info(airport: Airport):
     s = "Vis"
     cr.set_font_size(0.03)
     cr.set_source_rgba(0, 0, 0, 1)
-    cr.select_font_face("Clearview", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
+    cr.select_font_face(INFO_FONT, cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
     _x, _y, text_width, text_height, dx, dy = cr.text_extents(s)
     cr.move_to(vxb_x + vxb_w - text_width - 0.06, ((vxb_y + (vxb_h / 2)) / aspect_ratio))
     cr.text_path(s)
     cr.fill()
 
     # Ceiling text
-    s = f"{airport.cloud_ceiling}ft"
+    s = f"{airport.cloud_ceiling:,}ft" if airport.cloud_ceiling < 10_000 else "SKC"
     cr.set_font_size(0.04)
     cr.set_source_rgba(0, 0, 0, 1)
-    cr.select_font_face("Clearview", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
+    cr.select_font_face(INFO_FONT, cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
     _x, _y, text_width, text_height, dx, dy = cr.text_extents(s)
     cr.move_to(text_horizontal_margin, ((ceilb_y + (ceilb_h / 2)) / aspect_ratio) + (text_height / 2))
     cr.text_path(s)
@@ -548,7 +547,7 @@ def render_metar_additional_info(airport: Airport):
     s = f"{airport.metar.temperature} / {airport.metar.dew_point}"
     cr.set_font_size(0.04)
     cr.set_source_rgba(0, 0, 0, 1)
-    cr.select_font_face("Clearview", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
+    cr.select_font_face(INFO_FONT, cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
     _x, _y, text_width, text_height, dx, dy = cr.text_extents(s)
     cr.move_to(text_horizontal_margin, ((tempb_y + (tempb_h / 2)) / aspect_ratio) + (text_height / 2))
     cr.text_path(s)
@@ -557,7 +556,7 @@ def render_metar_additional_info(airport: Airport):
     s = "˚C"
     cr.set_font_size(0.03)
     cr.set_source_rgba(0, 0, 0, 1)
-    cr.select_font_face("Clearview", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
+    cr.select_font_face(INFO_FONT, cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
     _x, _y, text_width, text_height, dx, dy = cr.text_extents(s)
     cr.move_to(tempb_x + tempb_w - text_width - 0.04, ((tempb_y + (tempb_h / 2)) / aspect_ratio) + 0.01)
     cr.text_path(s)
@@ -567,7 +566,7 @@ def render_metar_additional_info(airport: Airport):
     s = f"{mb_to_inHg(airport.metar.altimeter):4.2f}\""
     cr.set_font_size(0.04)
     cr.set_source_rgba(0, 0, 0, 1)
-    cr.select_font_face("Clearview", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
+    cr.select_font_face(INFO_FONT, cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
     _x, _y, text_width, text_height, dx, dy = cr.text_extents(s)
     cr.move_to(text_horizontal_margin, ((altb_y + (altb_h / 2)) / aspect_ratio) + (text_height / 2))
     cr.text_path(s)

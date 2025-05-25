@@ -11,6 +11,7 @@ import re
 from math import radians, sin, cos
 from typing_extensions import Literal
 import time
+import numpy as np
 
 from utils import coalesce_int_from_float, coalesce_float, coalesce
 from metar_taf_parser.model.model import Wind, Metar
@@ -72,13 +73,13 @@ class RunwayWindInfo:
     min_crosswind: float
     max_crosswind: float
 
-    def __init__(self, runway: Runway, wind: Wind, is_preferred_rw_info: Literal["le", "he", "no", "unk"]="unk", fast_compute: bool=False):
-        # TODO add fast computation mode that doesn't consider wind variation for speeding up historical computations
-        if fast_compute:
-            raise ValueError("fast_compute is not yet supported!")
+    def __init__(self, runway: Runway, wind: Wind, is_preferred_rw_info: Literal["le", "he", "no", "unk"]="unk", crosswind_map=None):
+        if crosswind_map:
+            raise ValueError("crosswind_map is not yet supported!")
         self.runway = runway
         self.wind = wind
         self.is_preferred_rw_info = is_preferred_rw_info
+
 
         if wind.direction == "VRB":
             self.variation = True
@@ -143,7 +144,7 @@ class Airport:
     """
     def __init__(self, ident: str, icao_code: str, iata_code: str, local_code: str, 
                        lat: float, long: float, elevation_ft: int, 
-                       iso_country: str, runways: list, frequencies: list):
+                       iso_country: str, runways: list[Runway], frequencies: list):
         # Airport info
         self.ident = ident
         self.icao_code = icao_code
@@ -158,7 +159,7 @@ class Airport:
         self.frequencies = frequencies
 
         # Cached unique runways
-        self._unique_runways = None    
+        self._unique_runways = None
 
         # Cached METAR info
         self._last_metar_fetch_time = None
@@ -182,17 +183,19 @@ class Airport:
         return self._unique_runways
     unique_runways = property(get_unique_runways)
 
-    def _compute_cloud_ceiling(self, metar: Metar):
+    def compute_cloud_ceiling(self, metar: Metar):
         ceiling = coalesce(metar.vertical_visibility, 10_000)
         for c in metar.clouds:
             if c.quantity in (CloudQuantity.BKN, CloudQuantity.OVC) and c.height <= ceiling:
                 ceiling = c.height
         return ceiling
 
-    def _compute_rw_wind(self, metar: Metar):
+    def compute_rw_wind(self, metar: Metar):
         """
         Returns tuple of (runway, headwind, crosswind), sorted by headwind, crosswind, only for unique runways. 
         """
+        if metar.wind is None:
+            return []
         rws_wind_info = []
         rws = self.unique_runways
         rws_wind_info = sorted([RunwayWindInfo(rw, metar.wind) for rw in rws], key=lambda rwi: rwi.max_headwind, reverse=True)
@@ -203,7 +206,7 @@ class Airport:
     def _compute_flight_category(self, metar: Metar, ceiling: int):
         if metar is None:
             return "UNK"
-        vx = self._parse_visibility(metar.visibility.distance)
+        vx = self.parse_visibility(metar)
         overall_flight_category = "UNK"
         vx_flight_category = "UNK"
         ceiling_flight_category = "UNK"
@@ -216,16 +219,28 @@ class Airport:
                 vx_flight_category = rule
         return overall_flight_category, vx_flight_category, ceiling_flight_category
     
-    def _parse_visibility(self, s: str):
-        if s.endswith("SM"):
-            s = s[:-2].split(" ")
-            if len(s) == 1:
-                return float(s[0])
-            else:
-                f = s[1].split("/")
-                return float(s[0]) + float(f[0]) / float(f[1])
+    def parse_visibility(self, metar: Metar):
+        if metar is not None and metar.visibility is not None and metar.visibility.distance is not None:
+            s = metar.visibility.distance
+            if s.endswith("SM"):
+                s = s[:-2].split(" ")
+                if len(s) == 0:
+                    return np.nan
+                elif len(s) > 1:
+                    f = s[1].split("/")
+                    return float(s[0]) + float(f[0]) / float(f[1])
+                elif "/" in s[0]:
+                    if s[0] == "M1/4":
+                        return 0
+                    else:
+                        f = s[0].split("/")
+                        return float(f[0]) / float(f[1])
+                elif len(s[0]) == 0:
+                    return np.nan
+                else:
+                    return float(s[0])
         else:
-            return 0
+            return np.nan
     
     def _get_cloud_ceiling(self):
         self._fetch_current_metar()
@@ -257,8 +272,8 @@ class Airport:
             if self._metar is None or new_metar.day != self._metar.day or new_metar.time != self._metar.time:
                 self._metar = new_metar
                 if self._metar is not None:
-                    self._cloud_ceiling = self._compute_cloud_ceiling(self._metar)
-                    self._runway_wind_info = self._compute_rw_wind(self._metar)
+                    self._cloud_ceiling = self.compute_cloud_ceiling(self._metar)
+                    self._runway_wind_info = self.compute_rw_wind(self._metar)
                     self._flight_category, self._vx_flight_category, self._ceiling_flight_category = self._compute_flight_category(self._metar, self._cloud_ceiling)
         return self._metar
     metar: Metar = property(_fetch_current_metar)
