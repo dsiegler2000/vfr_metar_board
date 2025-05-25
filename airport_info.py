@@ -144,12 +144,7 @@ class Airport:
     """
     def __init__(self, ident: str, icao_code: str, iata_code: str, local_code: str, 
                        lat: float, long: float, elevation_ft: int, 
-<<<<<<< HEAD
                        iso_country: str, runways: list[Runway], frequencies: list):
-=======
-                       iso_country: str, runways: list[Runway], frequencies: list,
-                       fast_compute=False):
->>>>>>> 3787e6227d6757a096f4a762756e37201bd59073
         # Airport info
         self.ident = ident
         self.icao_code = icao_code
@@ -165,37 +160,6 @@ class Airport:
 
         # Cached unique runways
         self._unique_runways = None
-<<<<<<< HEAD
-=======
-
-        # Whether fast compute mode is enabled
-        # TODO finish this code out -- 
-        #  create df of weather conditions
-        #  generate monthly averages by hour to store for each year
-        #  then plot that shit (ok seperate)
-        if fast_compute:
-            self._crosswind_map = None 
-
-            rw_info_full = []
-            for rw in self.runways:
-                for i in ["le", "he"]:
-                    rw_info_full.append({
-                        "length_ft": rw.length_ft,
-                        "width_ft": rw.width_ft,
-                        "lighted": rw.lighted,
-                        "closed": rw.closed,
-                        "ident": rw.le_ident if i == "le" else rw.he_ident,
-                        "heading_true": rw[f"{i}_heading_true"],
-                        "displaced_threshold_ft": rw[f"{i}_displaced_threshold_ft"],
-                        "est_lda_ft": rw["est_lda_ft"],
-                        "surface": rw["surface"]
-                    })
-            rw_df = pd.DataFrame(rw_info_full)
-
-
-        else:
-            self._crosswind_map = None
->>>>>>> 3787e6227d6757a096f4a762756e37201bd59073
 
         # Cached METAR info
         self._last_metar_fetch_time = None
