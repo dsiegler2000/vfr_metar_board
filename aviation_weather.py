@@ -18,8 +18,13 @@ import urllib.parse
 import re
 import time
 import pandas as pd
+<<<<<<< HEAD
 import numpy as np
 from datetime import datetime, timedelta
+=======
+from io import StringIO
+from datetime import datetime
+>>>>>>> 3787e6227d6757a096f4a762756e37201bd59073
 from metar_taf_parser.parser.parser import MetarParser, TAFParser
 from metar_taf_parser.model.model import Metar
 from metar_taf_parser.model.enum import Phenomenon
@@ -32,6 +37,7 @@ if TYPE_CHECKING:
 AVIATIONWEATHER_METAR_API_URL = "https://aviationweather.gov/api/data/metar"
 AVIATIONWEATHER_TAF_API_URL = "https://aviationweather.gov/api/data/taf"
 
+<<<<<<< HEAD
 HISTORIC_WEATHER_PHENOMENONS = [
     Phenomenon.RAIN,
     Phenomenon.DRIZZLE,
@@ -43,6 +49,8 @@ HISTORIC_WEATHER_PHENOMENONS = [
     Phenomenon.HAZE
 ]
 
+=======
+>>>>>>> 3787e6227d6757a096f4a762756e37201bd59073
 def aviationweather_api_request(url: str, **params):
     full_url = f"{url}?{urllib.parse.urlencode(params)}"
     response = requests.get(full_url)
@@ -92,11 +100,16 @@ def fetch_historical_metar(airport: Airport, check_cache: bool=True, start_ds: s
     # can mostly copy previous code
     # note the code should be local & UPPER CASE 
     # SCK NOT sck or ksck or KSCK
+<<<<<<< HEAD
+=======
+    icao_like_id = icao_like_id.lower()
+>>>>>>> 3787e6227d6757a096f4a762756e37201bd59073
 
     # TODO implement retry no kilo
     # TODO implement cache - likely move the logic into a helper
     # TODO implement this on a yearly basis, so then the computation isn't as much
     # TODO really we want to start this fetching & computation while the metar is loading
+<<<<<<< HEAD
     # TODO all the calculations can be made much more efficient, & with much less memory swap
 
     dt1 = datetime.strptime(start_ds, "%Y-%m-%d")
@@ -104,18 +117,37 @@ def fetch_historical_metar(airport: Airport, check_cache: bool=True, start_ds: s
     uri = (
         "http://mesonet.agron.iastate.edu/cgi-bin/request/asos.py?"
         f"station={airport.icao_code.upper()}"
+=======
+
+    dt1 = datetime.strptime("2024-01-01", "%Y-%m-%d")
+    dt2 = datetime.strptime("2024-12-31", "%Y-%m-%d")
+    uri = (
+        "http://mesonet.agron.iastate.edu/cgi-bin/request/asos.py?"
+        f"station={icao_like_id.upper()}"
+>>>>>>> 3787e6227d6757a096f4a762756e37201bd59073
         f"&year1={dt1.year}&month1={dt1.month}&day1={dt1.day}"
         f"&year2={dt2.year}&month2={dt2.month}&day2={dt2.day}"
         "&data=all&direct=yes&latlon=no&elev=no&missing=M&trace=T&Etc%2FUTC&format=onlycomma&report_type=1&report_type=3&report_type=4"
     )
+<<<<<<< HEAD
     print(f"Requesting historical METAR data for {airport.icao_code.upper()} from {start_ds} to {end_ds}, uri={uri}")
+=======
+    print("start waiting...")
+>>>>>>> 3787e6227d6757a096f4a762756e37201bd59073
     st = time.time()
     # response = httpx.get(uri, timeout=60 * 5)
     # text = response.text
     # df = pd.read_csv(StringIO(text))
     # df.to_csv("data/testing.csv")
+<<<<<<< HEAD
     df = pd.read_csv("data/testing.csv", index_col=0)
     print(f"Downloaded {df.shape[0]} rows in {time.time() - st:2.2f}s")
+=======
+    print("time to fetch:")
+    df = pd.read_csv("data/testing.csv")
+    print(time.time() - st)
+    print(f"fetched: {df.shape[0]} rows")
+>>>>>>> 3787e6227d6757a096f4a762756e37201bd59073
     st = time.time()
     print("parsing")
     # TODO from this, compute & store the monthly...
@@ -125,6 +157,7 @@ def fetch_historical_metar(airport: Airport, check_cache: bool=True, start_ds: s
     #  then store it as a csv or json or something
     #  then when loading it / working with it live, have a wrapper class
     #  cause we may store additional info like % chance of gust, etc
+<<<<<<< HEAD
 
     # TODO compute this for current month/year too
 
@@ -212,6 +245,17 @@ def fetch_historical_metar(airport: Airport, check_cache: bool=True, start_ds: s
     )
 
     print(df2.head())
+=======
+    
+    df["metar_obj"] = df["metar"].apply(lambda metar: MetarParser().parse(metar))
+
+    # Crosswind
+    # Cloud ceiling
+    # Flight category
+
+    # print(df.head(10))
+    print(df.columns)
+>>>>>>> 3787e6227d6757a096f4a762756e37201bd59073
 
     print(time.time() - st)
 
