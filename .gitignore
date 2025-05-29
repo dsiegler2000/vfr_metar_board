@@ -4,6 +4,7 @@ data/airport_info/airport_db/
 data/airport_info/azos/
 data/keys/
 data/testing
+data/historical_weather_stats
 debug/
 .lgd-nfy0*
 __pycache__/

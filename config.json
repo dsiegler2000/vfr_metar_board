@@ -3,6 +3,7 @@
     "airportdb_airport_info_fp": "data/airport_info/airport_db",
     "keys_fp": "data/keys",
     "debug_fp": "debug",
+    "historical_weather_stats_fp": "data/historical_weather_stats",
 
     "airportdb_token_fn": "airportdb_token.txt",
 
@@ -10,7 +11,8 @@
         "azos_airport_info_fp",
         "airportdb_airport_info_fp",
         "keys_fp",
-        "debug_fp"
+        "debug_fp",
+        "historical_weather_stats_fp"
     ],
 
     "gpio": {

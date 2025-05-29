@@ -4,7 +4,7 @@ from flask import Flask, render_template, send_from_directory, send_file
 from flask_sock import Sock
 
 from airport_info import get_airport_info
-from aviation_weather import fetch_historical_metar
+from aviation_weather import fetch_compute_historical_metar
 from render import render_metar_wind, render_metar_additional_info, render_metar_cloud_cover
 
 app = Flask(__name__)
@@ -49,11 +49,11 @@ def charts_testing():
 
 # TODO this can be a way to get relevant info to the client
 #  it is likely more "javascript-onic" to transmit this as a json
-fetch_historical_metar(get_airport_info("kcle"))
+fetch_compute_historical_metar(get_airport_info("kcle"))
 @app.route("/chart_testing/csv_test")
 def csv_test():
     print("hi!")
-    fetch_historical_metar("ksck")
+    fetch_compute_historical_metar("ksck")
     return "hi!"
 
 @app.route("/metar/<icao>")
@@ -105,7 +105,7 @@ def favicon():
 
 @app.route("/")
 def root():
-    return "Boop."
+    return "I love monkeys."
 
 @sock.route("/echo")
 def echo(ws):

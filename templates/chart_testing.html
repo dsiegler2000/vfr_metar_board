@@ -11,7 +11,7 @@
     .then(response => response.text())
     .then(data => console.log('Data received:', data))
     .catch(error => {
-        console.error('There was a problem with the fetch operation:', error);
+        console.error('Error fetching historical weather stats:', error);
     });
 
     addEventListener("keypress", (event) => { 

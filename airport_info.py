@@ -147,9 +147,9 @@ class Airport:
                        iso_country: str, runways: list[Runway], frequencies: list):
         # Airport info
         self.ident = ident
-        self.icao_code = icao_code
-        self.iata_code = iata_code
-        self.local_code = local_code
+        self.icao_code = icao_code.upper()
+        self.iata_code = iata_code.upper()
+        self.local_code = local_code.upper()
         self.lat = lat
         self.long = long
         self.elevation_ft = elevation_ft
