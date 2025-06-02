@@ -123,25 +123,65 @@ def fetch_last_week_metar():
 
 def fetch_cached_historical_metar(airport: Airport, retry_kilo: bool=True):
     """Fetches already computed & cached historical METAR data"""
-    pass
+    fp = f"{HISTORICAL_WEATHER_STATS_FP}/{airport.icao_code}.csv"
+    if os.path.isfile(fp):
+        return pd.read_csv(fp)
+    else:
+        return None
 
-def fetch_compute_historical_metar(airport: Airport, check_cache: bool=True, retry_kilo: bool=True, start_year: int=2016, end_year: int=2025):
+def fetch_compute_historical_metar(airport: Airport, check_cache: bool=True, retry_kilo: bool=True, start_year: int=2016, end_year: int=2024):
     """Fetches & computes historical METAR data"""
-    # TODO fetch & process historical data for fast access in the future
 
-    # TODO implement retry no kilo
-    # TODO implement cache - likely move the logic into a helper
-    # TODO implement this on a yearly basis, so then the computation isn't as much
-    # TODO compute percentiles P10, P25, etc
     # TODO properly implement the async nature of fetch_cached vs fetch_compute
     #  Have the client make a silent request to fetch_compute & fetch_cached at the same time
     # TODO make more efficient
+    # TODO have a seperate function to get data for the current year
+    #  likely requires splitting the logic out to it's own function
+    #  ok maybe for current year we just want raw values?
+    #  no for current year what we really want is last 30d average
+
+    # TODO let's see if the to_csv actually worked
 
     fp = f"{HISTORICAL_WEATHER_STATS_FP}/{airport.icao_code}.csv"
-    if check_cache and os.path.isfile(fp):
-        print(f"Cache hit!")
+    df = fetch_cached_historical_metar(airport, retry_kilo=retry_kilo)
+    # Cache hit
+    if check_cache and df is not None:
+        return df
     else:
-        final_df = []
+        # Compute stats yearly, add to list, & concat at the end
+        final_dfs = []
+
+        # Aggregations to perform on each year of data
+        def pct(rows, target_val=True):
+                return (rows == target_val).sum() / rows.shape[0]
+
+        def safe_mean(rows, to_replace="M"):
+            return np.mean(pd.to_numeric(rows.replace(to_replace, np.nan), errors="coerce"))
+        
+        def percentile(rows, ptile, to_replace="M"):
+            return np.percentile(pd.to_numeric(rows.replace(to_replace, np.nan), errors="coerce"), q=ptile)
+        
+        def pct_wind_in_bucket(rows, dir):
+            rows_cleaned = pd.to_numeric(rows.replace("M", np.nan), errors="coerce")
+            if dir in (0, 360):
+                n = ((rows_cleaned >= 0) & (rows_cleaned < 10)) | (rows_cleaned == 360).sum()
+            else:
+                n = ((rows_cleaned >= dir) & (rows_cleaned < dir + 10))
+            return n / rows_cleaned.shape[0]
+        
+        aggs = dict()
+        for c in ["temp_f", "dewpoint_f", "wind_str", "wind_gust", "pressure_in", "visibility", "min_headwind", "max_headwind", "min_crosswind", "max_crosswind", "cloud_ceiling"]:
+            aggs.update({
+                f"{c}_mean": (c, safe_mean),
+                f"{c}_p25": (c, partial(percentile, ptile=25)),
+                f"{c}_p50": (c, partial(percentile, ptile=50)),
+                f"{c}_p75": (c, partial(percentile, ptile=75)),
+                f"{c}_missing_pct": (c, partial(pct, target_val="M"))
+            })
+        aggs.update({f"pct_wind_dir_{dir}_{dir + 9}": ("wind_dir_true", partial(pct_wind_in_bucket, dir=dir)) for dir in range(0, 360, 10)})
+        aggs.update({f"{repr(p)}_pct": (repr(p), np.mean) for p in HISTORIC_WEATHER_PHENOMENONS})
+
+        overall_st = time.time()
         for year in range(start_year, end_year + 1):
             ident = airport.icao_code
             print(f"Fetching & computing historicals for {ident} {year}")
@@ -181,73 +221,57 @@ def fetch_compute_historical_metar(airport: Airport, check_cache: bool=True, ret
             df["year"] = df["dt"].dt.year
             df["month_dt"] = df["dt"].apply(lambda t: t.replace(day=1, hour=0, minute=0, second=0, microsecond=0))
 
-
             # Reduce data to only the relevant observation for the hour
             # The first manual (non-AUTO) observation or first AUTO observation if no manual exists
             df["auto_metar"] = df["metar"].str.contains(r"AUTO|MADISHF")
             df = df.loc[df.groupby(["date", "hour", "auto_metar"])["dt"].idxmin()].groupby(["date", "hour"]).first()
 
             def clean_data(r):
-                m = MetarParser().parse(r["metar"])
-                rwi_l = airport.compute_rw_wind(m)
-                rwi = (rwi_l[0].min_headwind, rwi_l[0].max_headwind, rwi_l[0].min_crosswind, rwi_l[0].max_crosswind) if len(rwi_l) > 0 else (np.nan, np.nan, np.nan, np.nan)
-                cloud_ceiling = airport.compute_cloud_ceiling(m)
-                visibility = airport.parse_visibility(m)
-                
-                # 8 of them
-                phenomenons_list = set()
-                for c in m.weather_conditions:
-                    for p in c.phenomenons:
-                        phenomenons_list.add(p)
+                if r["metar"] == "M":
+                    return r
+                try:
+                    m = MetarParser().parse(r["metar"])
+                    rwi_l = airport.compute_rw_wind(m)
+                    rwi = (rwi_l[0].min_headwind, rwi_l[0].max_headwind, rwi_l[0].min_crosswind, rwi_l[0].max_crosswind) if len(rwi_l) > 0 else (np.nan, np.nan, np.nan, np.nan)
+                    cloud_ceiling = airport.compute_cloud_ceiling(m)
+                    visibility = airport.parse_visibility(m)
+                    
+                    # 8 of them
+                    phenomenons_list = set()
+                    for c in m.weather_conditions:
+                        for p in c.phenomenons:
+                            phenomenons_list.add(p)
 
-                r["metar_obj"] = m
-                r["min_headwind"] = rwi[0]
-                r["max_headwind"] = rwi[1]
-                r["min_crosswind"] = rwi[2]
-                r["max_crosswind"] = rwi[3]
+                    r["metar_obj"] = m
+                    r["min_headwind"] = rwi[0]
+                    r["max_headwind"] = rwi[1]
+                    r["min_crosswind"] = rwi[2]
+                    r["max_crosswind"] = rwi[3]
 
-                r["cloud_ceiling"] = cloud_ceiling
-                r["visibility"] = visibility
-                r["temp_c"] = m.temperature
-                r["dewpoint_c"] = m.dew_point
-                r["pressure_in"] = m.altimeter
-                if m.wind is not None:
-                    r["wind_dir_true"] = coalesce(m.wind.degrees, r["wind_dir_true"])
-                    r["wind_str"] = coalesce(m.wind.speed, r["wind_str"])
-                    r["wind_gust"] = coalesce(m.wind.gust, r["wind_gust"])
-                for p in HISTORIC_WEATHER_PHENOMENONS:
-                    r[repr(p)] = p in phenomenons_list
-
+                    r["cloud_ceiling"] = cloud_ceiling
+                    r["visibility"] = visibility
+                    r["temp_c"] = m.temperature
+                    r["dewpoint_c"] = m.dew_point
+                    r["pressure_in"] = m.altimeter
+                    if m.wind is not None:
+                        r["wind_dir_true"] = coalesce(m.wind.degrees, r["wind_dir_true"])
+                        r["wind_str"] = coalesce(m.wind.speed, r["wind_str"])
+                        r["wind_gust"] = coalesce(m.wind.gust, r["wind_gust"])
+                    for p in HISTORIC_WEATHER_PHENOMENONS:
+                        r[repr(p)] = p in phenomenons_list
+                except:
+                    print(f"Failed to parse METAR:")
+                    print(r["metar"])
                 return r
 
             df = df.apply(clean_data, axis=1)
 
             # TODO implement data quality checks
-            def pct(rows, target_val=True):
-                return (rows == target_val).sum() / rows.shape[0]
 
-            def safe_mean(rows, to_replace="M"):
-                return np.mean(pd.to_numeric(rows.replace(to_replace, np.nan), errors="coerce"))
-            
-            def percentile(rows, ptile, to_replace="M"):
-                return np.percentile(pd.to_numeric(rows.replace(to_replace, np.nan), errors="coerce"), q=ptile)
-
-            # Ok, so we want to do aggregations by row here
-            stats_df = df.groupby(["year", "month", "hour"]).agg({
-                "temp_f":           [safe_mean, partial(percentile, ptile=25), partial(percentile, ptile=50), partial(percentile, ptile=75)],
-                "dewpoint_f":       [safe_mean, partial(percentile, ptile=25), partial(percentile, ptile=50), partial(percentile, ptile=75)],
-                "wind_dir_true":    [safe_mean],
-                "wind_str":         [safe_mean, partial(percentile, ptile=25), partial(percentile, ptile=50), partial(percentile, ptile=75)],
-                "wind_gust":        [safe_mean, partial(percentile, ptile=25), partial(percentile, ptile=50), partial(percentile, ptile=75), partial(pct, target_val="M")],
-                "pressure_in":      [safe_mean, partial(percentile, ptile=25), partial(percentile, ptile=50), partial(percentile, ptile=75)],
-                "visibility":       [safe_mean, partial(percentile, ptile=25), partial(percentile, ptile=50), partial(percentile, ptile=75)],
-                "min_headwind":     [safe_mean, partial(percentile, ptile=25), partial(percentile, ptile=50), partial(percentile, ptile=75)],
-                "max_headwind":     [safe_mean, partial(percentile, ptile=25), partial(percentile, ptile=50), partial(percentile, ptile=75)],
-                "min_crosswind":    [safe_mean, partial(percentile, ptile=25), partial(percentile, ptile=50), partial(percentile, ptile=75)],
-                "max_crosswind":    [safe_mean, partial(percentile, ptile=25), partial(percentile, ptile=50), partial(percentile, ptile=75)],
-                "cloud_ceiling":    [safe_mean, partial(percentile, ptile=25), partial(percentile, ptile=50), partial(percentile, ptile=75)],
-            } | {repr(p):           [np.mean] for p in HISTORIC_WEATHER_PHENOMENONS})
-            final_df.append(stats_df)
-            print(f"Computed stats over {stats_df.shape[0]} in {time.time() - st:2.2f}s")
-        final_df = pd.concat(final_df)
-        final_df.to_csv(fp)
+            stats_df = df.groupby(["year", "month", "hour"]).agg(**aggs)
+            final_dfs.append(stats_df)
+            print(f"Computed stats: {df.shape[0]} => {stats_df.shape[0]} rows in {time.time() - st:2.2f}s")
+        final_df = pd.concat(final_dfs).reset_index().sort_index()
+        print(f"Finished computing historicals for {ident}, {start_year}-{end_year} in {time.time() - overall_st}")
+        print(f"Saving to {fp}")
+        final_df.to_csv(fp, index=False)

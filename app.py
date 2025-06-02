@@ -31,7 +31,7 @@ TEST_ICAOS = [
 ]
 # for a in TEST_ICAOS:
 #     print(f"http://127.0.0.1:5000/metar/{a}")
-print("http://127.0.0.1:5000/chart_testing")
+print("http://127.0.0.1:5000/historical_metar_chart/kcle")
 
 @app.route("/socket_testing/<icao>")
 def testing_icao(icao):
@@ -43,17 +43,17 @@ def testing_icao(icao):
                            metar=metar,
                            taf=taf)
 
-@app.route("/chart_testing")
-def charts_testing():
-    return render_template("chart_testing.html")
+@app.route("/historical_metar_chart/<icao>")
+def historical_metar_chart(icao):
+    return render_template("historical_metar_chart.html",
+                           icao=icao)
 
 # TODO this can be a way to get relevant info to the client
 #  it is likely more "javascript-onic" to transmit this as a json
-fetch_compute_historical_metar(get_airport_info("kcle"))
-@app.route("/chart_testing/csv_test")
+@app.route("/historical_metar_chart_data")
 def csv_test():
     print("hi!")
-    fetch_compute_historical_metar("ksck")
+    # fetch_compute_historical_metar("ksck")
     return "hi!"
 
 @app.route("/metar/<icao>")
