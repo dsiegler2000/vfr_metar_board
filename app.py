@@ -54,7 +54,7 @@ def historical_metar_chart(icao):
 @app.route("/historical_metar_chart_data/<icao>")
 def historical_metar_chart_data(icao):
     df = fetch_cached_historical_metar(get_airport_info(icao).icao_code)
-    return "" if df is None else df.to_string()
+    return "" if df is None else df.to_csv(index=False)
 
 # Fetch compute historical METAR - will skip if cache hit
 @app.route("/historical_metar_fetch_compute/<icao>")
