@@ -1,8 +1,11 @@
-icao = "{{ icao }}"
-console.log("Starting JS script!")
-console.log(document.querySelector('#enrolled_id').value)
+icao = document.querySelector("#icao").value
 
-fetch("/historical_metar_chart_data")
+// Fetch compute will force an async computation of historical METAR data
+fetch("/historical_metar_fetch_compute/" + icao).then()
+
+// Chart data will return currently stored historical METARs
+//  If historical METARs are not yet fetched & computed, this returns nothing
+fetch("/historical_metar_chart_data/" + icao)
 .then(response => response.text())
 .then(data => console.log('Data received:', data))
 .catch(error => {

@@ -121,12 +121,18 @@ def fetch_latest_taf(icao_like_id: str, retry_kilo: bool=True):
 def fetch_last_week_metar():
     pass
 
-def fetch_cached_historical_metar(airport: Airport, retry_kilo: bool=True):
+def fetch_cached_historical_metar(ident, retry_kilo: bool=True):
     """Fetches already computed & cached historical METAR data"""
-    fp = f"{HISTORICAL_WEATHER_STATS_FP}/{airport.icao_code}.csv"
+    fp = f"{HISTORICAL_WEATHER_STATS_FP}/{ident}.csv"
     if os.path.isfile(fp):
         return pd.read_csv(fp)
     else:
+        if retry_kilo:
+            if ident.lower().startswith("k") and len(ident) == 4:
+                ident = ident[1:]
+            elif len(ident) == 3:
+                ident = f"K{ident.upper()}"
+            return fetch_cached_historical_metar(ident, retry_kilo=False)
         return None
 
 def fetch_compute_historical_metar(airport: Airport, check_cache: bool=True, retry_kilo: bool=True, start_year: int=2016, end_year: int=2024):
@@ -143,7 +149,7 @@ def fetch_compute_historical_metar(airport: Airport, check_cache: bool=True, ret
     # TODO let's see if the to_csv actually worked
 
     fp = f"{HISTORICAL_WEATHER_STATS_FP}/{airport.icao_code}.csv"
-    df = fetch_cached_historical_metar(airport, retry_kilo=retry_kilo)
+    df = fetch_cached_historical_metar(airport.icao_code, retry_kilo=retry_kilo)
     # Cache hit
     if check_cache and df is not None:
         return df

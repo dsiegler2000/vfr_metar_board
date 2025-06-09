@@ -1,5 +1,8 @@
 {
-  "name": "vfr_metar_board",
+  "dependencies": {
+    "highcharts": "^12.2.0"
+  },
+  "name": "vfr-metar-board",
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
@@ -7,8 +10,5 @@
   },
   "author": "",
   "license": "ISC",
-  "dependencies": {
-    "highcharts": "^12.2.0"
-  },
   "description": ""
 }

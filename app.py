@@ -1,11 +1,13 @@
 import os
+import time
 
 from flask import Flask, render_template, send_from_directory, send_file
 from flask_sock import Sock
 
 from airport_info import get_airport_info
-from aviation_weather import fetch_compute_historical_metar
+from aviation_weather import fetch_compute_historical_metar, fetch_cached_historical_metar
 from render import render_metar_wind, render_metar_additional_info, render_metar_cloud_cover
+from utils import coalesce
 
 app = Flask(__name__)
 
@@ -48,13 +50,18 @@ def historical_metar_chart(icao):
     return render_template("historical_metar_chart.html",
                            icao=icao)
 
-# TODO this can be a way to get relevant info to the client
-#  it is likely more "javascript-onic" to transmit this as a json
-@app.route("/historical_metar_chart_data")
-def csv_test():
-    print("hi!")
-    # fetch_compute_historical_metar("ksck")
-    return "hi!"
+# Fetch currently computed historical METAR - returns cached results only
+@app.route("/historical_metar_chart_data/<icao>")
+def historical_metar_chart_data(icao):
+    df = fetch_cached_historical_metar(get_airport_info(icao).icao_code)
+    return "" if df is None else df.to_string()
+
+# Fetch compute historical METAR - will skip if cache hit
+@app.route("/historical_metar_fetch_compute/<icao>")
+def historical_metar_chart_fetch_compute(icao):
+    st = time.time()
+    fetch_compute_historical_metar(get_airport_info(icao))
+    return str(time.time() - st)
 
 @app.route("/metar/<icao>")
 def image_testing(icao):
