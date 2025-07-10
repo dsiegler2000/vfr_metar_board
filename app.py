@@ -51,10 +51,19 @@ def historical_metar_chart(icao):
                            icao=icao)
 
 # Fetch currently computed historical METAR - returns cached results only
+# Really we need to split this out to different endpoints
+# Or no, return the data in the form of a json
 @app.route("/historical_metar_chart_data/<icao>")
 def historical_metar_chart_data(icao):
     df = fetch_cached_historical_metar(get_airport_info(icao).icao_code)
-    return "" if df is None else df.to_csv(index=False)
+    if df is None:
+        return ""
+    else:
+        return {
+            "x": [1, 2, 3, 4],
+            "y": [5, 6, 7, 8]
+        }
+    # return "" if df is None else df.to_csv(index=False)
 
 # Fetch compute historical METAR - will skip if cache hit
 @app.route("/historical_metar_fetch_compute/<icao>")

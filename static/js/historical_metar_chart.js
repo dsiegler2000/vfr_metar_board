@@ -7,12 +7,13 @@ fetch("/historical_metar_fetch_compute/" + icao).then()
 //  If historical METARs are not yet fetched & computed, this returns nothing
 fetch("/historical_metar_chart_data/" + icao)
 .then(response => response.text())
+// .then(data => console.log('Data received:', parseCsv(data)))
 .then(data => console.log('Data received:', data))
 .catch(error => {
     console.error('Error fetching historical weather stats:', error);
 });
 
-addEventListener("keypress", (event) => { 
+addEventListener("keypress", (event) => {
     console.log(event['key']);
     if (event['key'] == 'a') {
         Highcharts.charts[0].series[0].points[0].onMouseOver();
